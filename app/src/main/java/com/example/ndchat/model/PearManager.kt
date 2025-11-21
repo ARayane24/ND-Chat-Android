@@ -6,7 +6,6 @@ import java.io.BufferedWriter
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.LinkedList
@@ -37,7 +36,7 @@ class PearManager(
 
     private fun startServer() {
         try {
-            serverSocket = ServerSocket(myHost.portNumber, 10, InetAddress.getByName(myHost.hostName))
+            serverSocket = ServerSocket(myHost.portNumber, 10)
             while (true) {
                 val client = serverSocket!!.accept()
                 Thread { handleIncoming(client) }.start()
