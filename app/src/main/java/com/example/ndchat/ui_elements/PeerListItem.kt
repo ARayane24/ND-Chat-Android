@@ -44,16 +44,17 @@ fun PeerListItem(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(peer.pearName, fontWeight = FontWeight.Bold)
-                Text("${peer.hostName}:${peer.portNumber}", style = MaterialTheme.typography.bodySmall)
-            }
-
             // Show Radio Button to make it obvious
             RadioButton(
                 selected = isSelected,
                 onClick = null // null because Card click handles it
             )
+
+            Column(modifier = Modifier.padding(start = 8.dp).weight(1f)) {
+                Text(peer.pearName, fontWeight = FontWeight.Bold)
+                Text("${peer.hostName}:${peer.portNumber}", style = MaterialTheme.typography.bodySmall)
+            }
+
 
             // Only show Edit/Delete if NOT selected (optional UX choice)
             if (!isSelected) {

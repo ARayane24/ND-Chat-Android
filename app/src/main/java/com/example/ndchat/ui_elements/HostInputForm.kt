@@ -30,6 +30,7 @@ fun HostInputForm(
             onValueChange = onPearNameChange,
             label = { Text("Name") },
             modifier = Modifier.fillMaxWidth(),
+            maxLines = 1,
             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(red = 0, green = 200, blue = 20), unfocusedTextColor = Color(red = 0, green = 200, blue = 20)),
         )
         Spacer(Modifier.height(8.dp))
@@ -39,7 +40,9 @@ fun HostInputForm(
             label = { Text("IP Address") },
             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
             modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            maxLines = 1
+
         )
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
@@ -48,7 +51,8 @@ fun HostInputForm(
             label = { Text("Port") },
             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
             modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            maxLines = 1
         )
     }
 }

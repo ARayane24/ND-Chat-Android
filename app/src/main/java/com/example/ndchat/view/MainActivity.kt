@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
                 // State for the setup screen inputs
                 var tempName by remember { mutableStateOf("") }
                 var tempHost by remember { mutableStateOf("") }
-                var tempPort by remember { mutableStateOf("") }
+                var tempPort by remember { mutableStateOf("55555") }
 
                 val remotePeers = remember { mutableStateListOf<Host>() }
                 var messages by remember { mutableStateOf(listOf<Message>()) }
@@ -125,13 +125,11 @@ class MainActivity : ComponentActivity() {
                                 // Force recomposition by toggling a dummy state or relying on MutableState if Host properties are observable
                             },
                             onDelete = {
-                                p -> remotePeers.remove(p)
+                                peer -> pearManager.apply {   pearManager.removePeerFromList(peer) }
                             },
                             onEdit = {
-                                p ->
-                                {
-                                    remotePeers.remove(p)
-                                    remotePeers.add(p)
+                               newp -> pearManager.apply {
+                                    pearManager.updatePeer(newp)
                                 }
                             }
                         )

@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -29,14 +31,15 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,12 +48,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.ndchat.R
 import com.example.ndchat.model.Message
 
 @Composable
@@ -138,7 +145,8 @@ fun ChatScreen(
                 onInputChange = { inputText = it },
                 onSend = { txt, b, p -> onSend(txt, b, p); inputText = TextFieldValue("") },
                 onPeersClick = { isMenuOpen = !isMenuOpen },
-                onEditHostClick = { showEditMyHostDialog = true }
+                onEditHostClick = { showEditMyHostDialog = true },
+                onPoolCreated = {b,p -> /*todo*/ }
             )
 
             if (isMenuOpen) {
@@ -161,7 +169,7 @@ fun ChatScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeersContent(
-    pears: MutableList<Host>, // ✅ FIXED: MutableList
+    pears: MutableList<Host>,
     onAddPeer: (Host) -> Unit,
     onPeerSelected: (Host) -> Unit,
     onBroadcastSelected: () -> Unit,
@@ -172,7 +180,10 @@ fun PeersContent(
 ) {
     var pearName by remember { mutableStateOf("") }
     var hostName by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("55555") }
+
+    // 👇 NEW: track which peer is currently being edited
+    var editingPeer by remember { mutableStateOf<Host?>(null) }
 
     Column(
         Modifier
@@ -183,39 +194,97 @@ fun PeersContent(
         Text("Peers", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
-        // Add Form
-        Text("Add Connection", fontSize = TextUnit.Unspecified, fontWeight = FontWeight.Bold)
-        OutlinedTextField(value = pearName, onValueChange = { pearName = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(red = 0, green = 200, blue = 20), unfocusedTextColor = Color(red = 0, green = 200, blue = 20)),
-            )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = hostName, onValueChange = { hostName = it }, label = { Text("IP") }, modifier = Modifier.weight(1f),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-            OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("Port") }, modifier = Modifier.width(80.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+        // Add / Edit Form
+        Text(
+            if (editingPeer == null) "Add Connection" else "Edit Connection",
+            fontSize = TextUnit.Unspecified,
+            fontWeight = FontWeight.Bold
+        )
 
+        OutlinedTextField(
+            value = pearName,
+            onValueChange = { pearName = it },
+            maxLines = 1,
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(red = 0, green = 200, blue = 20), unfocusedTextColor = Color(red = 0, green = 200, blue = 20)),
+        )
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = hostName,
+                onValueChange = { hostName = it },
+                maxLines = 1,
+                label = { Text("IP") },
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+
+            OutlinedTextField(
+                value = port,
+                onValueChange = { port = it },
+                maxLines = 1,
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
+                label = { Text("Port") },
+                modifier = Modifier.width(80.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
         }
+
         Button(
             onClick = {
-                if (pearName.isNotBlank() && port.toIntOrNull() != null) {
-                    onAddPeer(Host(pearName, hostName, port.toInt()))
-                    pearName = ""; hostName = ""; port = ""
+                if (pearName.isBlank() || port.toIntOrNull() == null) return@Button
+
+                if (editingPeer == null) {
+                    // ADD NEW PEER
+                    val newPeer = Host(pearName, hostName, port.toInt())
+                    onAddPeer(newPeer)
+                } else {
+                    // SAVE EDITS
+                    val updatedPeer = editingPeer!!.copy(
+                        pearName = pearName,
+                        hostName = hostName,
+                        portNumber = port.toInt()
+                    )
+                    onEdit(updatedPeer)
+                    // Exit edit mode
+                    editingPeer = null
                 }
+
+                // Reset fields
+                pearName = ""
+                hostName = ""
+                port = "55555"
             },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) { Text("Add") }
+        ) {
+            Text(if (editingPeer == null) "Add" else "Save")
+        }
+
+        if (editingPeer != null) {
+            OutlinedButton (
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                onClick = {
+                    editingPeer = null
+                    pearName = ""
+                    hostName = ""
+                    port = "55555"
+                },
+            ) {
+                Text("Cancel")
+            }
+        }
 
         HorizontalDivider(Modifier.padding(vertical = 16.dp))
 
-        // List
+        // PEERS LIST
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // 1. Broadcast Option
+
+            // BROADCAST
             item {
                 Card(
                     onClick = onBroadcastSelected,
-                    // ✅ FIXED: Highlight color if selected
                     colors = CardDefaults.cardColors(
                         containerColor = if (isBroadcast) Color(0xFFFFD180) else Color(0xFFFFF3E0)
                     ),
@@ -225,30 +294,38 @@ fun PeersContent(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("📢 Broadcast (All)", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         RadioButton(selected = isBroadcast, onClick = null)
+
+                        Text(
+                            "📢 Broadcast (All)",
+                            modifier = Modifier.padding(start = 8.dp).weight(1f),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
 
-            // 2. Peer List Options
+            // PEERS
             items(pears) { peer ->
-                // ✅ FIXED: Correct selection logic
                 val isSelected = (peer == currentPeer) && !isBroadcast
 
                 PeerListItem(
                     peer = peer,
-                    isSelected = isSelected, // Pass the boolean
+                    isSelected = isSelected,
                     onSelect = onPeerSelected,
-                    onEdit = onEdit,
-                    onDelete = { peerToDelete ->
-                        pears.remove(peerToDelete) // ✅ FIXED: Actually removes item
-                    }
+                    onEdit = { p ->
+                        editingPeer = p
+                        pearName = p.pearName
+                        hostName = p.hostName
+                        port = p.portNumber.toString()
+                    },
+                    onDelete = onDelete
                 )
             }
         }
     }
 }
+
 
 
 // --- SUB COMPONENT: Chat UI ---
@@ -261,10 +338,13 @@ fun ChatContent(
     selectedPeer: Host?,
     onInputChange: (TextFieldValue) -> Unit,
     onSend: (String, Boolean, Host?) -> Unit,
+    onPoolCreated:(Boolean, Host?) -> Unit,
     onPeersClick: () -> Unit,
     onEditHostClick: () -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(Color(0xFFFAFAFA))) {
+    Column(Modifier
+        .fillMaxSize()
+        .background(Color(0xFFFAFAFA))) {
         // Top Bar
         Row(
             modifier = Modifier
@@ -274,7 +354,9 @@ fun ChatContent(
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier.weight(1f).clickable { onEditHostClick() }) {
+            Column(Modifier
+                .weight(1f)
+                .clickable { onEditHostClick() }) {
                 Text(
                     if (isBroadcast) "Global Chat" else selectedPeer?.pearName ?: "Chat",
                     fontWeight = FontWeight.Bold,
@@ -291,42 +373,116 @@ fun ChatContent(
 
         // Messages Area
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp),
             reverseLayout = true
         ) {
             items(messages.reversed()) { msg ->
                 // Assuming MessageBubble is defined elsewhere or uses basic Text
-                MessageBubble(msg)
+                if (msg.sender != null)
+                    MessageBubble(message = msg)
+                else
+                    ConnectionStateMessage(message = msg)
 
             }
         }
 
         // Input Area
         Row(
-            Modifier.background(Color.White).padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            Modifier
+                .background(Color.White)
+                .padding(8.dp)
+                .fillMaxWidth(), // Ensure the row fills the width
+            verticalAlignment = Alignment.Bottom // Use Alignment.Bottom for multi-line stability
         ) {
-            TextField(
+
+            // 1. Add Pool Button (Left Icon)
+            if( inputText.text.isBlank())
+                IconButton(
+                    onClick = { onPoolCreated(isBroadcast, selectedPeer) },
+                    enabled = inputText.text.isBlank(), // Only enabled when the text field is empty
+                    modifier = Modifier.align(Alignment.CenterVertically),
+
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.add_button),
+                        contentDescription = "Add pool",
+                        tint = Color.Unspecified
+                    )
+                }
+
+            // 2. Telegram-style BasicTextField (replaces the Box/TextField block)
+            BasicTextField(
                 value = inputText,
-                onValueChange = onInputChange,
+                onValueChange = onInputChange, // Accepts TextFieldValue
+
+                // Modifier setup: takes up available space and sets min height
                 modifier = Modifier
                     .weight(1f)
+                    .padding(horizontal = 4.dp) // Add padding around the text field background
                     .heightIn(min = 48.dp),
-                placeholder = { Text("Message...") },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFF0F0F0),
-                    unfocusedContainerColor = Color(0xFFF0F0F0),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black
+
+                textStyle = LocalTextStyle.current.copy(
+                    color = Color.Black,
+                    fontSize = 16.sp
                 ),
-                shape = MaterialTheme.shapes.extraLarge,
+                singleLine = false,
+                maxLines = 5,
+                minLines = 1,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+
+                // 🔑 The DecorationBox for custom padding, shape, and background
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Manually apply the background and pill shape
+                            .background(
+                                color = Color(0xFFF0F0F0),
+                                shape = RoundedCornerShape(24.dp)
+                            )
+                            .heightIn(min = 48.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        // Manually apply the desired compact padding (16.dp horizontal, 10.dp vertical)
+                        val compactPadding = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+
+                        // Placeholder
+                        if (inputText.text.isEmpty()) {
+                            Box(modifier = compactPadding) {
+                                Text(
+                                    "Message...",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+
+                        // Actual editable text field
+                        Box(modifier = compactPadding) {
+                            innerTextField()
+                        }
+                    }
+                }
             )
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = { onSend(inputText.text, isBroadcast, selectedPeer) }) {
-                Text("Send")
-            }
+
+            // 3. Send Button (Right Icon)
+            if (inputText.text.isNotBlank())
+                IconButton(
+                    onClick = { onSend(inputText.text.trim(), isBroadcast, selectedPeer) },
+                    enabled = inputText.text.isNotBlank(),
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .height(30.dp)
+                        .width(30.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.send_button),
+                        contentDescription = "send button",
+                        tint = Color.Unspecified,
+                    )
+                }
         }
     }
 }

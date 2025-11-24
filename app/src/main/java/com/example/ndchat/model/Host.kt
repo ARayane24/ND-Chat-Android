@@ -7,5 +7,5 @@ data class Host(
 ) {
     val uuid: UUID = UUID.nameUUIDFromBytes("$pearName|$hostName|$portNumber".toByteArray())
 
-    override fun toString(): String = "$pearName[$uuid]@$hostName:$portNumber"
+    override fun toString(): String = "[$uuid] $pearName "
 }

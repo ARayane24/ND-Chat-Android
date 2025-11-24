@@ -20,8 +20,8 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun MessageBubble(message: Message) {
-    val isBroadcast = message.message.contains("")
-    val backgroundColor = if (message.isSentByMe) Color(0xFFDCF8C6) else if(isBroadcast) Color.Blue else Color.White
+    val isBroadcast = message.message.contains("Broadcast")
+    val backgroundColor = if (message.isSentByMe) Color(0xFFC6E4F8) else if(isBroadcast) Color(0xFFDCF8C6) else Color.White
     val alignment = if (message.isSentByMe) Alignment.TopStart else Alignment.TopEnd
     val formatter = DateTimeFormatter.ofPattern("dd MMM, HH:mm")
 

@@ -33,6 +33,46 @@ class PearManager(
         Thread { connectToPeer(peer) }.start()
     }
 
+    fun removePeerFromList (peer : Host){
+        remotePeers.remove(peer)
+        Thread { disconnectFromPeer(peer)}.start()
+    }
+
+    fun updatePeer(updated: Host) {
+        synchronized(clientSockets) {
+            // 1. Find the old peer in list
+            val oldPeer = remotePeers.find { it.uuid == updated.uuid }
+
+            if (oldPeer != null) {
+                // 2. Replace peer in list
+                val index = remotePeers.indexOf(oldPeer)
+                remotePeers[index] = updated
+
+                // 3. Disconnect old socket
+                val oldSocket = clientSockets.find { s ->
+                    s.inetAddress.hostAddress == oldPeer.hostName &&
+                            s.port == oldPeer.portNumber
+                }
+
+                if (oldSocket != null) {
+                    try {
+                        oldSocket.close()
+                    } catch (_: IOException) { }
+                    clientSockets.remove(oldSocket)
+                }
+
+                // 4. Reconnect using updated info (new IP / port)
+                Thread { connectToPeer(updated) }.start()
+
+                // 5. Notify UI
+                onMessageReceived("Peer updated: ${updated.pearName}", null)
+            } else {
+                println("Peer not found to update: ${updated.pearName}")
+            }
+        }
+    }
+
+
     private fun startServer() {
         try {
             serverSocket = ServerSocket(myHost.portNumber, 10)
@@ -51,6 +91,7 @@ class PearManager(
             try {
                 val socket = Socket(peer.hostName, peer.portNumber)
                 synchronized(clientSockets) { clientSockets.add(socket) }
+                sendMessage(socket,"")
                 break
             } catch (e: IOException) {
                 Thread.sleep(5000)
@@ -71,7 +112,7 @@ class PearManager(
         }
     }
 
-    fun sendMessage(socket: Socket, message: String) {
+    private fun sendMessage(socket: Socket, message: String) {
         Thread {
             try {
                 val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
@@ -85,9 +126,10 @@ class PearManager(
     }
 
     fun broadcast(message: String) {
+        Thread {
         synchronized(clientSockets) {
             clientSockets.forEach { socket -> sendMessage(socket, "[Broadcast] $message") }
-        }
+        } }.start()
     }
 
     fun stop() {
@@ -96,21 +138,23 @@ class PearManager(
     }
 
     fun sendToPeer(target: Host, text: String) {
-        synchronized(clientSockets) {
-            // Find the socket corresponding to the target peer
-            val socket = clientSockets.find { s ->
-                s.inetAddress.hostAddress == target.hostName && s.port == target.portNumber
-            }
+        Thread {
+            synchronized(clientSockets) {
+                // Find the socket corresponding to the target peer
+                val socket = clientSockets.find { s ->
+                    s.inetAddress.hostAddress == target.hostName && s.port == target.portNumber
+                }
 
-            if (socket != null && socket.isConnected && !socket.isClosed) {
-                sendMessage(socket, "[${target.pearName}] $text")
-            } else {
-                println("Cannot send to ${target.pearName}, socket not connected")
+                if (socket != null && socket.isConnected && !socket.isClosed) {
+                    sendMessage(socket, "[${target.pearName}] $text")
+                } else {
+                    println("Cannot send to ${target.pearName}, socket not connected")
+                }
             }
-        }
+        }.start()
     }
 
-    fun disconnectFromPeer(target: Host) {
+    private fun disconnectFromPeer(target: Host) {
         synchronized(clientSockets) {
             // Find the socket corresponding to the target peer
             val socket = clientSockets.find { s ->
