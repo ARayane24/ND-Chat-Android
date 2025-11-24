@@ -3,6 +3,7 @@ package com.example.ndchat.ui_elements
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -77,7 +78,7 @@ fun ConnectionStateMessage(message: Message) {
         contentAlignment = Alignment.TopCenter,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
+        Row (
             modifier = Modifier
                 .padding(12.dp)
                 .widthIn(max = 280.dp)

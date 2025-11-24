@@ -245,7 +245,8 @@ fun PeersContent(
                     val updatedPeer = editingPeer!!.copy(
                         pearName = pearName,
                         hostName = hostName,
-                        portNumber = port.toInt()
+                        portNumber = port.toInt(),
+                        uuid = editingPeer!!.uuid
                     )
                     onEdit(updatedPeer)
                     // Exit edit mode
