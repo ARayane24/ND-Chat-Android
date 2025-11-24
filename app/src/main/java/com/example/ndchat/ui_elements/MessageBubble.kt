@@ -15,43 +15,55 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ndchat.model.Message
+import java.time.format.DateTimeFormatter
 
 
 @Composable
 fun MessageBubble(message: Message) {
-    val backgroundColor = if (message.isSentByMe) Color(0xFFDCF8C6) else Color.White
+    val isBroadcast = message.message.contains("")
+    val backgroundColor = if (message.isSentByMe) Color(0xFFDCF8C6) else if(isBroadcast) Color.Blue else Color.White
     val alignment = if (message.isSentByMe) Alignment.TopStart else Alignment.TopEnd
+    val formatter = DateTimeFormatter.ofPattern("dd MMM, HH:mm")
+
 
     Box(
         contentAlignment = alignment,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .background(backgroundColor, shape = RoundedCornerShape(12.dp))
-                .padding(12.dp)
-                .widthIn(max = 280.dp)
-        ) {
-            if(message.isSentByMe)
-                Text(
-                    text = message.message,
-                    fontSize = 16.sp,
-                    color = Color.Black
-                )
-            else
-                Column (){
+        Column {
+            Box(
+                modifier = Modifier
+                    .background(backgroundColor, shape = RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+                    .widthIn(max = 280.dp)
+            ) {
+                if(message.isSentByMe)
                     Text(
                         text = message.message,
                         fontSize = 16.sp,
                         color = Color.Black
                     )
-                    Text(
-                        text = message.sender.toString(),
-                        fontSize = 5.sp,
-                        color = Color.Black
-                    )
-                }
+                else
+                    Column (){
+                        Text(
+                            text = message.message,
+                            fontSize = 16.sp,
+                            color = Color.Black
+                        )
+                        Text(
+                            text = message.sender.toString(),
+                            fontSize = 5.sp,
+                            color = Color.Black
+                        )
+                    }
+            }
+            Text(
+                text =  message.dateTime.format(formatter) ,
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
         }
+
     }
 }
 
@@ -59,6 +71,8 @@ fun MessageBubble(message: Message) {
 
 @Composable
 fun ConnectionStateMessage(message: Message) {
+    val formatter = DateTimeFormatter.ofPattern("dd MMM, HH:mm")
+
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = Modifier.fillMaxWidth()
@@ -70,6 +84,11 @@ fun ConnectionStateMessage(message: Message) {
         ) {
             Text(
                 text = message.message,
+                fontSize = 10.sp,
+                color = Color.Gray
+            )
+            Text(
+                text =  message.dateTime.format(formatter) ,
                 fontSize = 10.sp,
                 color = Color.Gray
             )

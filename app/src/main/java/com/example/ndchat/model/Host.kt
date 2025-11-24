@@ -1,9 +1,9 @@
 import java.util.UUID
 
 data class Host(
-    val pearName: String,
-    val hostName: String,
-    val portNumber: Int
+    var pearName: String,
+    var hostName: String,
+    var portNumber: Int
 ) {
     val uuid: UUID = UUID.nameUUIDFromBytes("$pearName|$hostName|$portNumber".toByteArray())
 

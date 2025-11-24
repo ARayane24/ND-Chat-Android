@@ -8,11 +8,10 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.LinkedList
 
 class PearManager(
     private val myHost: Host,
-    private val remotePeers: LinkedList<Host>,
+    private val remotePeers: MutableList<Host>,
     private val onMessageReceived: (String, Host?) -> Unit
 ) {
 

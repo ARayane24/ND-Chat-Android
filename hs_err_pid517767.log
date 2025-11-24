@@ -1,0 +1,247 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGBUS (0x7) at pc=0x00007fd216dc6c80, pid=517767, tid=517784
+#
+# JRE version: OpenJDK Runtime Environment (21.0.7) (build 21.0.7+-13880790-b1038.58)
+# Java VM: OpenJDK 64-Bit Server VM (21.0.7+-13880790-b1038.58, mixed mode, tiered, compressed oops, compressed class ptrs, g1 gc, linux-amd64)
+# Problematic frame:
+# V  [libjvm.so+0xe745ed]  PhaseOutput::estimate_buffer_size(int&)+0xdd
+#
+# Core dump will be written. Default location: Core dumps may be processed with "/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F" (or dumping to /home/ratoui/AndroidStudioProjects/NDChat/core.517767)
+#
+# If you would like to submit a bug report, please visit:
+#   https://youtrack.jetbrains.com/issues/JBR
+#
+
+---------------  S U M M A R Y ------------
+
+Command Line: --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED -Xmx2048m -Dfile.encoding=UTF-8 -Duser.country=GB -Duser.language=en -Duser.variant -javaagent:/home/ratoui/.gradle/wrapper/dists/gradle-8.13-bin/5xuhj0ry160q40clulazy9h7d/gradle-8.13/lib/agents/gradle-instrumentation-agent-8.13.jar -Dawt.toolkit.name=XToolkit org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.13
+
+Host: Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz, 12 cores, 15G, Fedora release 42 (Adams)
+Time: Wed Nov 12 17:32:31 2025 CET elapsed time: 1550.835726 seconds (0d 0h 25m 50s)
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x00007fd2102a2c50):  JavaThread "C2 CompilerThread0" daemon [_thread_in_native, id=517784
+[error occurred during error reporting (printing current thread), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb5003]
+
+Current CompileTask:
+C2:1550835 44667 %     4       com.android.tools.r8.internal.dw::b @ 47 (723 bytes)
+
+Stack: [0x00007fd1f94fe000,0x00007fd1f95fe000],  sp=0x00007fd1f95fa420,  free space=1009k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [libjvm.so+0xe745ed]  PhaseOutput::estimate_buffer_size(int&)+0xdd
+V  [libjvm.so+0xe7434c]  PhaseOutput::Output()+0x62c
+V  [libjvm.so+0x877090]  Compile::Code_Gen()+0x660
+V  [libjvm.so+0x874de8]  Compile::Compile(ciEnv*, ciMethod*, int, Options, DirectiveSet*)+0x12d8
+V  [libjvm.so+0x7cd29e]  C2Compiler::compile_method(ciEnv*, ciMethod*, int, bool, DirectiveSet*)+0x13e
+V  [libjvm.so+0x8865b7]  CompileBroker::invoke_compiler_on_method(CompileTask*)+0x647
+V  [libjvm.so+0x885da5]  CompileBroker::compiler_thread_loop()+0x5c5
+V  [libjvm.so+0xabd8f0]  JavaThread::thread_main_inner()+0x90
+V  [libjvm.so+0x101381e]  Thread::call_run()+0xae
+V  [libjvm.so+0xe60c14]  thread_native_entry(Thread*)+0x114
+C  [libc.so.6+0x71f54]  start_thread+0x2e4
+
+siginfo: si_signo: 7 (SIGBUS), si_code: 2 (BUS_ADRERR), si_addr: 0x00007fd216dc6c80
+
+Registers:
+RAX=0x00007fd217954568, RBX=0x00007fd1f95face8, RCX=0x00007fd1b1e2d480, RDX=0x0000000000000549
+RSP=0x00007fd1f95fa418, RBP=0x00007fd1f95fa450, RSI=0x00007fd1f95fbbb8, RDI=0x00007fd1b07e02e0
+R8 =0x0000000000000006, R9 =0x0000000000000006, R10=0x00007fd1b0dbfff0, R11=0x00007fd1b0d9aad8
+R12=0x0000000000000024, R13=0x00007fd1b03589d0, R14=0x000000000000000b, R15=0x0000000000000000
+RIP=0x00007fd216dc6c80, EFLAGS=0x0000000000010246
+[error occurred during error reporting (printing registers), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb5003]
+Register to memory mapping:
+
+RAX=0x00007fd217954568: <offset 0x000000000112f568>
+[error occurred during error reporting (printing register info), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb5003]
+RBX=0x00007fd1f95face8 is pointing into the stack for thread: 0x00007fd2102a2c50
+RCX=0x00007fd1b1e2d480 points into unknown readable memory: 0x00007fd1b1eb9cc8 | c8 9c eb b1 d1 7f 00 00
+RDX=0x0000000000000549 is an unknown value
+RSP=0x00007fd1f95fa418 is pointing into the stack for thread: 0x00007fd2102a2c50
+RBP=0x00007fd1f95fa450 is pointing into the stack for thread: 0x00007fd2102a2c50
+
+[error occurred during error reporting (printing register info, attempt 2), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb51e7]
+RDI=0x00007fd1b07e02e0 points into unknown readable memory: 0x00007fd217954568 | 68 45 95 17 d2 7f 00 00
+R8 =0x0000000000000006 is an unknown value
+
+[error occurred during error reporting (printing register info, attempt 3), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb51e7]
+Top of Stack: (sp=0x00007fd1f95fa418)
+0x00007fd1f95fa418:   00007fd2176995ed 00007fd1f95faf98
+0x00007fd1f95fa428:   00007fd1f95face8 00007fd1b0e53478
+0x00007fd1f95fa438:   0000000000000549 00007fd1b081f5c0
+0x00007fd1f95fa448:   00000000000031b4 00007fd1f95fa6d0
+0x00007fd1f95fa458:   00007fd21769934c 00007fd1f95fbbb8
+0x00007fd1f95fa468:   00007fd1b1cdc1f0 0000000000000000
+0x00007fd1f95fa478:   00007fd1b0a0d1a0 00007fd1b0ef7740
+0x00007fd1f95fa488:   00007fd1b0efa4b8 00007fd1f95fac48
+0x00007fd1f95fa498:   00007fd1f95fabd8 00000000000015dc
+0x00007fd1f95fa4a8:   00007fd1f95fa670 0000000000008400
+0x00007fd1f95fa4b8:   00007fd2179b0618 000000000000000d
+0x00007fd1f95fa4c8:   00007fd1f95fbbb8 00007fd1f95fa4f0
+0x00007fd1f95fa4d8:   00007fd217839243 00007fd1f95fa4f0
+0x00007fd1f95fa4e8:   00007fd2178392b3 00007fd1f95fa550
+0x00007fd1f95fa4f8:   00007fd216ed37da 00007fd216ae1756
+0x00007fd1f95fa508:   00007fd1b0000000 0000000000003100
+0x00007fd1f95fa518:   00007fd1b0e53250 0000000000000000
+0x00007fd1f95fa528:   00007fd216d86289 00007fd217905cc0
+0x00007fd1f95fa538:   00007fd1b0e53250 00007fd1f95fa590
+0x00007fd1f95fa548:   00007fd21765f44e 00007fd1f95fa5b0
+0x00007fd1f95fa558:   00007fd1f95fac48 0000000000000200
+0x00007fd1f95fa568:   000000000000018d 00007fd1f95fa590
+0x00007fd1f95fa578:   00007fd21788911f 00007fd1b0000c88
+0x00007fd1f95fa588:   00007fd21765fbb0 ffffffffffffffff
+0x00007fd1f95fa598:   00007fd1b0e53300 00007fd1b1497ea0
+0x00007fd1f95fa5a8:   00007fd1b1ca2048 00007fd1f95fa600
+0x00007fd1f95fa5b8:   00007fd2176c9a9e 00007fd1b1ca1ea8
+0x00007fd1f95fa5c8:   00007fd1b12f58d8 00007fd1b12f58d8
+0x00007fd1f95fa5d8:   00007fd1b1497ea0 00007fd1b1497ea0
+0x00007fd1f95fa5e8:   00007fd1b1ca1ea8 000000000000000b
+0x00007fd1f95fa5f8:   00007fd1b14982b0 00007fd1f95fa670
+0x00007fd1f95fa608:   00007fd2176bd3ff 00007fd210291460 
+
+Instructions: (pc=0x00007fd2176995ed)
+0x00007fd2176994ed:   00 41 c7 47 2c 02 00 00 00 48 8d 05 db be 26 00
+0x00007fd2176994fd:   e9 f5 fa ff ff 66 66 66 66 66 2e 0f 1f 84 00 00
+0x00007fd21769950d:   00 00 00 55 48 89 e5 41 57 41 56 41 55 41 54 53
+0x00007fd21769951d:   50 49 89 f6 48 89 fb c7 06 00 10 00 00 48 8b 47
+0x00007fd21769952d:   08 83 78 60 00 74 21 48 8b b8 68 08 00 00 be 48
+0x00007fd21769953d:   02 00 00 03 b3 78 02 00 00 e8 05 fc 06 00 89 83
+0x00007fd21769954d:   7c 02 00 00 48 8b 43 08 c7 43 10 00 00 00 00 48
+0x00007fd21769955d:   8b 88 60 08 00 00 48 8b 90 68 08 00 00 8b 89 10
+0x00007fd21769956d:   03 00 00 8b 52 50 01 d1 81 c1 b8 fd ff ff 89 8b
+0x00007fd21769957d:   48 02 00 00 48 83 b8 08 03 00 00 00 0f 84 b5 00
+0x00007fd21769958d:   00 00 4c 89 75 d0 48 8b 88 50 08 00 00 83 79 40
+0x00007fd21769959d:   00 0f 84 a5 00 00 00 45 31 e4 45 31 ff eb 1e 0f
+0x00007fd2176995ad:   1f 40 00 48 8b 43 08 49 ff c4 48 8b 88 50 08 00
+0x00007fd2176995bd:   00 8b 51 40 49 39 d4 0f 83 82 00 00 00 48 8b 49
+0x00007fd2176995cd:   30 4e 8b 2c e1 41 83 7d 28 00 74 db 45 31 f6 eb
+0x00007fd2176995dd:   1b 66 90 48 8b 73 08 48 8b 07 ff 90 68 01 00 00
+0x00007fd2176995ed:   49 ff c6 41 8b 45 28 49 39 c6 73 b7 41 8b 45 18
+0x00007fd2176995fd:   49 39 c6 73 1e 49 8b 45 20 4a 8b 3c f0 0f b6 47
+0x00007fd21769960d:   2c 3d 82 00 00 00 74 cb eb 16 66 0f 1f 84 00 00
+0x00007fd21769961d:   00 00 00 31 ff 0f b6 47 2c 3d 82 00 00 00 74 b3
+0x00007fd21769962d:   83 e0 03 83 f8 02 75 b8 48 8b 07 ff 90 28 01 00
+0x00007fd21769963d:   00 45 8d 3c c7 eb a9 45 8b 3e eb 1d 45 31 ff 48
+0x00007fd21769964d:   8d bb 80 02 00 00 e8 48 2c a3 ff 44 03 bb 98 02
+0x00007fd21769965d:   00 00 48 8b 45 d0 44 89 38 48 89 df 44 89 fe 48
+0x00007fd21769966d:   83 c4 08 5b 41 5c 41 5d 41 5e 41 5f 5d e9 01 34
+0x00007fd21769967d:   00 00 90 55 48 89 e5 41 57 41 56 41 55 41 54 53
+0x00007fd21769968d:   48 81 ec e8 00 00 00 48 89 75 c8 48 89 fb ba 68
+0x00007fd21769969d:   04 00 00 48 03 15 39 57 33 00 48 8d 35 ac c9 48
+0x00007fd2176996ad:   ff 48 8d bd f8 fe ff ff e8 66 a1 a0 ff 48 89 5d
+0x00007fd2176996bd:   c0 48 8b 43 08 48 8b 80 50 08 00 00 8b 40 40 48
+0x00007fd2176996cd:   89 45 80 4c 8d 3c 85 00 00 00 00 4c 89 ff 31 f6
+0x00007fd2176996dd:   e8 ce c1 07 00 48 89 85 78 ff ff ff 4c 89 ff 31 
+
+
+Stack slot to memory mapping:
+
+stack at sp + 0 slots: 0x00007fd1f95faf98 is pointing into the stack for thread: 0x00007fd2102a2c50
+stack at sp + 1 slots: 0x00007fd1f95face8 is pointing into the stack for thread: 0x00007fd2102a2c50
+stack at sp + 2 slots: 0x00007fd1b0e53478 points into unknown readable memory: 0x00007fd2179056d8 | d8 56 90 17 d2 7f 00 00
+stack at sp + 3 slots: 0x0000000000000549 is an unknown value
+stack at sp + 4 slots: 0x00007fd1b081f5c0 points into unknown readable memory: 0x00007fd21798a5a0 | a0 a5 98 17 d2 7f 00 00
+stack at sp + 5 slots: 0x00000000000031b4 is an unknown value
+stack at sp + 6 slots: 0x00007fd1f95fa6d0 is pointing into the stack for thread: 0x00007fd2102a2c50
+stack at sp + 7 slots: 0x00007fd21769934c: <offset 0x0000000000e7434c>
+[error occurred during error reporting (inspecting top of stack), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb5003]
+
+
+---------------  P R O C E S S  ---------------
+
+Threads class SMR info:
+_java_thread_list=0x00007fd1a480b1c0, length=211, elements={
+0x00007fd21002df50, 0x00007fd21027fac0, 0x00007fd21028bff0, 0x00007fd21028d070,
+0x00007fd21028e8f0, 0x00007fd21028ff30, 0x00007fd2102a1730, 0x00007fd2102a2c50,
+0x00007fd2102a4300, 0x00007fd2103c9280, 0x00007fd211529690, 0x00007fd2115a1d00,
+0x00007fd2115e7c20, 0x00007fd168225040, 0x00007fd16822fe50, 0x00007fd168245dc0,
+0x00007fd168a83200, 0x00007fd168a855c0, 0x00007fd168ac1630, 0x00007fd168ac2440,
+0x00007fd168ac3570, 0x00007fd168ac46a0, 0x00007fd168ac57d0, 0x00007fd168ac6900,
+0x00007fd168ac7dc0, 0x00007fd168ac9000, 0x00007fd168aca160, 0x00007fd168acb410,
+0x00007fd168acc590, 0x00007fd168acd850, 0x00007fd168f532a0, 0x00007fd088d07250,
+0x00007fd190017290, 0x00007fd18800f180, 0x00007fd188001370, 0x00007fd188009730,
+0x00007fd17c036370, 0x00007fd17c051740, 0x00007fd17c051e40, 0x00007fd17c052540,
+0x00007fd17c052c40, 0x00007fd17c036ec0, 0x00007fd17c077c80, 0x00007fd17c078ec0,
+0x00007fd17c0732e0, 0x00007fd17c079b40, 0x00007fd17c07a6a0, 0x00007fd17c07b700,
+0x00007fd17c08bd30, 0x00007fd17c080470, 0x00007fd17c08db20, 0x00007fd17c08e3f0,
+0x00007fd17c0b3180, 0x00007fd17c0ae4e0, 0x00007fd17c0aef50, 0x00007fd17c0afdd0,
+0x00007fd17c0b4d80, 0x00007fd17c0b5de0, 0x00007fd17c0b90f0, 0x00007fd17c0ba190,
+0x00007fd17c0bb420, 0x00007fd17c0bc4c0, 0x00007fd17c0bd760, 0x00007fd17c0be9e0,
+0x00007fd17c0bf610, 0x00007fd17c0c0540, 0x00007fd17c0c1800, 0x00007fd17c0c28a0,
+0x00007fd17c0c3b70, 0x00007fd17c0c4e50, 0x00007fd17c0c6130, 0x00007fd17c0c71d0,
+0x00007fd17c0c84c0, 0x00007fd17c0c9560, 0x00007fd17c0d96e0, 0x00007fd17c0dd4c0,
+0x00007fd17c17f7c0, 0x00007fd08000b720, 0x00007fd08000be20, 0x00007fd080003c20,
+0x00007fd080004ce0, 0x00007fd0800013c0, 0x00007fd0800027d0, 0x00007fd138001ad0,
+0x00007fd080006050, 0x00007fd080007500, 0x00007fd0800089e0, 0x00007fd080009ed0,
+0x00007fd08000ddc0, 0x00007fd1580100d0, 0x00007fd158044650, 0x00007fd15802e440,
+0x00007fd158004b90, 0x00007fd158082cd0, 0x00007fd158025e00, 0x00007fd1580453b0,
+0x00007fd15800a440, 0x00007fd158027be0, 0x00007fd15802da80, 0x00007fd158022a70,
+0x00007fd158062170, 0x00007fd150011f50, 0x00007fd150012670, 0x00007fd150013b70,
+0x00007fd150018df0, 0x00007fd150019db0, 0x00007fd15001b330, 0x00007fd15001c8c0,
+0x00007fd15001de50, 0x00007fd15001f3f0, 0x00007fd150020990, 0x00007fd150021f40,
+0x00007fd150033c40, 0x00007fd1500324c0, 0x00007fd1580603e0, 0x00007fd158060eb0,
+0x00007fd15805dd70, 0x00007fd15805ef50, 0x00007fd1580330d0, 0x00007fd158033f00,
+0x00007fd1580354f0, 0x00007fd15802f7c0, 0x00007fd158030dc0, 0x00007fd15807e910,
+0x00007fd15807fee0, 0x00007fd13c0dadf0, 0x00007fd13c0dbc20, 0x00007fd13c0dca50,
+0x00007fd13c0deb20, 0x00007fd13c0df9e0, 0x00007fd13c0e0820, 0x00007fd13c0e1660,
+0x00007fd13c0e24b0, 0x00007fd1580649c0, 0x00007fd15402a930, 0x00007fd15402b680,
+0x00007fd15402c820, 0x00007fd1540304a0, 0x00007fd154031190, 0x00007fd154031ee0,
+0x00007fd154033110, 0x00007fd154033f60, 0x00007fd154034db0, 0x00007fd154035ee0,
+0x00007fd154036e30, 0x00007fd154038700, 0x00007fd154039760, 0x00007fd15403a990,
+0x00007fd15403bbc0, 0x00007fd15403ce00, 0x00007fd15403e040, 0x00007fd15403ee80,
+0x00007fd1540400b0, 0x00007fd1540417c0, 0x00007fd154042620, 0x00007fd154043760,
+0x00007fd150038d30, 0x00007fd12c003530, 0x00007fd12c004700, 0x00007fd12c005cd0,
+0x00007fd12c006f10, 0x00007fd12c008140, 0x00007fd12c009370, 0x00007fd12c00a5b0,
+0x00007fd12c00b7f0, 0x00007fd12c00ca20, 0x00007fd12c00d860, 0x00007fd12c00ea90,
+0x00007fd12c013270, 0x00007fd12c014320, 0x00007fd12c030310, 0x00007fd12c030f90,
+0x00007fd12c031ed0, 0x00007fd12c033110, 0x00007fd12c0345a0, 0x00007fd12c035dd0,
+0x00007fd12c036fd0, 0x00007fd12c038400, 0x00007fd12c0397f0, 0x00007fd15003de60,
+0x00007fd15004ef10, 0x00007fd1500504b0, 0x00007fd150043030, 0x00007fd150056860,
+0x00007fd150057a50, 0x00007fd150059820, 0x00007fd15005b710, 0x00007fd15005c750,
+0x00007fd15005d590, 0x00007fd15005f3a0, 0x00007fd068197a30, 0x00007fd0e00145a0,
+0x00007fd0e0019b80, 0x00007fd0e001c220, 0x00007fd0e001d200, 0x00007fd0ec010e10,
+0x00007fd190013db0, 0x00007fd18c0073a0, 0x00007fd198029410, 0x00007fd194038310,
+0x00007fd19c029b50, 0x00007fd1a4f049f0, 0x00007fd1ac002b50, 0x00007fd1b8003570,
+0x00007fd06c05ab10, 0x00007fd06c070de0, 0x00007fd06c078570, 0x00007fd06c079ec0,
+0x00007fd06c08b4b0, 0x00007fd06c08d6b0, 0x00007fd1a4c46540
+}
+
+Java Threads: ( => current thread )
+  0x00007fd21002df50 JavaThread "main"                              [_thread_blocked, id=517770
+[error occurred during error reporting (printing all threads), id 0x7, SIGBUS (0x7) at pc=0x00007fd217bb5003]
+VM state: not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+Heap address: 0x0000000080000000, size: 2048 MB, Compressed Oops mode: 32-bit
+
+CDS archive(s) not mapped
+Compressed class space mapped at: 0x0000000100000000-0x0000000140000000, reserved size: 1073741824
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 3, Narrow klass range: 0x140000000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
