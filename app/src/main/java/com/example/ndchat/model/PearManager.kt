@@ -43,16 +43,20 @@ class PearManager(
 
         // Start Server
         scope.launch { startServer() }
+        Log.d(TAG, "MANAGER: Server coroutine launched.")
 
         // Connect to existing peers
         remotePeers.forEach { peer ->
             scope.launch { connectToPeer(peer) }
+            Log.d(TAG, "MANAGER: Launched connection attempt for peer: ${peer.pearName}")
         }
+        Log.i(TAG, "MANAGER: Initialization complete. Waiting for connections.")
     }
 
     fun stop() {
         Log.d(TAG, "MANAGER: Stopping. Closing all connections.")
         scope.cancel() // Cancels all active coroutines (server loop, client loops)
+        Log.d(TAG, "MANAGER: Coroutine scope cancelled.")
 
         // Send disconnect to everyone
         peerSocketMap.forEach { (uuid, socket) ->
@@ -60,6 +64,7 @@ class PearManager(
                 // We use a separate thread/scope here because the main scope is cancelled
                 GlobalScope.launch(Dispatchers.IO) {
                     sendRawMessage(socket, "DISCONNECT|${myHost.uuid}")
+                    Log.d(TAG, "MANAGER: Sent DISCONNECT signal to $uuid.")
                 }
             }
         }
@@ -68,12 +73,14 @@ class PearManager(
             serverSocket?.close()
             peerSocketMap.values.forEach { it.close() }
             peerWriterMap.values.forEach { it.close() }
+            Log.d(TAG, "MANAGER: All sockets and streams explicitly closed.")
         } catch (e: Exception) {
-            Log.e(TAG, "Error closing resources: ${e.message}")
+            Log.e(TAG, "Error closing resources during stop: ${e.message}")
         }
 
         peerSocketMap.clear()
         peerWriterMap.clear()
+        Log.i(TAG, "MANAGER: PearManager stopped and resources released.")
     }
 
     // ---------------------------
@@ -83,26 +90,27 @@ class PearManager(
         withContext(Dispatchers.IO) {
             try {
                 serverSocket = ServerSocket(myHost.portNumber)
-                Log.d(TAG, "SERVER: Listening on port ${myHost.portNumber}...")
+                Log.i(TAG, "SERVER: Successfully bound to port ${myHost.portNumber}. Awaiting connections...")
 
                 while (isActive) { // Coroutine check
                     val client = serverSocket!!.accept()
-                    Log.d(TAG, "SERVER: Accepted connection from ${client.inetAddress.hostAddress}")
+                    Log.i(TAG, "SERVER: Incoming connection accepted from ${client.inetAddress.hostAddress}:${client.port}")
 
                     // Handle each client in a new coroutine
                     launch {
                         try {
-                            // Immediately send handshake. No Thread.sleep needed.
+                            Log.d(TAG, "SERVER: Starting handshake and handler for new client.")
                             sendHandshake(client)
                             handleConnection(client, isInitiator = false, isActive = isActive)
                         } catch (e: Exception) {
-                            Log.e(TAG, "SERVER: Client error: ${e.message}")
+                            Log.e(TAG, "SERVER: Error handling client from ${client.inetAddress.hostAddress}: ${e.message}", e)
                             client.close()
                         }
                     }
                 }
             } catch (e: IOException) {
-                if (isActive) Log.e(TAG, "SERVER: Error: ${e.message}")
+                if (isActive) Log.e(TAG, "SERVER: Error during server loop (Socket closed unexpectedly?): ${e.message}", e)
+                else Log.d(TAG, "SERVER: Loop terminated due to scope cancellation.")
             }
         }
     }
@@ -114,29 +122,27 @@ class PearManager(
         withContext(Dispatchers.IO) {
             while (isActive) {
                 try {
-                    Log.d(TAG, "CLIENT: Connecting to ${peer.pearName} at ${peer.hostName}:${peer.portNumber}")
-                    // 1. Attempt connection
+                    Log.d(TAG, "CLIENT: Attempting connection to ${peer.pearName} at ${peer.hostName}:${peer.portNumber}")
                     val socket = Socket(peer.hostName, peer.portNumber)
 
                     if (socket.isConnected) {
-                        Log.d(TAG, "CLIENT: Connected to ${peer.pearName}")
+                        Log.i(TAG, "CLIENT: Successfully connected to ${peer.pearName}")
 
-                        // 2. Send Handshake immediately
                         sendHandshake(socket)
 
-                        // 3. Pass control to the handler.
-                        // This line BLOCKS until the connection is lost or closed.
                         handleConnection(socket, isInitiator = true, associatedPeer = peer , isActive)
 
-                        // 4. If code reaches here, it means handleConnection finished (socket died)
-                        Log.w(TAG, "CLIENT: Connection to ${peer.pearName} ended. Reconnecting in 5s...")
+                        Log.w(TAG, "CLIENT: Handler for ${peer.pearName} returned. Connection lost or closed.")
+                    } else {
+                        // This case is rare if the Socket constructor succeeds but it ensures we retry.
+                        Log.w(TAG, "CLIENT: Connection failed (socket isn't connected after constructor). Retrying in 5s...")
                     }
+
                 } catch (e: IOException) {
-                    // Connection failed (refused, timeout, etc.)
-                    Log.w(TAG, "CLIENT: Failed to connect to ${peer.pearName}. Retrying in 5s...")
+                    Log.w(TAG, "CLIENT: Failed to connect to ${peer.pearName}. Retrying in 5s... Error: ${e.message}")
                 }
 
-                // 5. Wait before trying again (prevents CPU spam)
+                // Only delay if we need to retry
                 delay(5000)
             }
         }
@@ -145,7 +151,6 @@ class PearManager(
     // ---------------------------
     // UNIFIED CONNECTION HANDLER
     // ---------------------------
-    // Handles reading lines for both Server and Client sockets
     private suspend fun handleConnection(
         socket: Socket,
         isInitiator: Boolean,
@@ -153,24 +158,27 @@ class PearManager(
         isActive: Boolean
     ) {
         val remoteAddr = socket.inetAddress.hostAddress
-        // We use a local variable for the UUID to track who we are talking to
         var currentPeerUuid: UUID? = associatedPeer?.uuid
+        val connectionType = if (isInitiator) "OUTGOING" else "INCOMING"
+        Log.d(TAG, "HANDLER ($connectionType): Starting listener for $remoteAddr")
 
         try {
             val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
             val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
 
-            // 1. If we are the client, register the writer immediately so we can send messages
             if (isInitiator && currentPeerUuid != null) {
                 peerSocketMap[currentPeerUuid] = socket
                 peerWriterMap[currentPeerUuid] = writer
+                Log.d(TAG, "HANDLER ($connectionType): Registered maps for expected peer $currentPeerUuid.")
             }
 
-            // 2. Listen Loop
             var line: String?
             while (isActive) {
                 line = reader.readLine()
-                if (line == null) break // Connection closed by other side
+                if (line == null) {
+                    Log.i(TAG, "HANDLER ($connectionType): EOF reached. Peer closed the connection.")
+                    break
+                }
 
                 val parts = line.split("|")
                 when (parts[0]) {
@@ -178,38 +186,34 @@ class PearManager(
                         try {
                             val uuid = UUID.fromString(parts[1])
                             val name = parts[2]
-                            currentPeerUuid = uuid // Update our local tracker
+                            currentPeerUuid = uuid
+                            Log.i(TAG, "HANDSHAKE: Valid handshake received from $name ($uuid).")
 
-                            Log.i(TAG, "HANDSHAKE: Handshake valid from $name ($uuid)")
-
-                            // Safe Map Update
                             peerSocketMap[uuid] = socket
                             peerWriterMap[uuid] = writer
 
-                            // Safe List Update (Synchronized)
                             synchronized(remotePeers) {
                                 val existingPeer = remotePeers.find { it.uuid == uuid }
                                 if (existingPeer != null) {
-                                    // Update existing (e.g., IP might have changed)
+                                    Log.d(TAG, "HANDSHAKE: Peer $name already known. Details updated.")
                                     val index = remotePeers.indexOf(existingPeer)
                                     remotePeers[index] = Host(name, socket.inetAddress.hostAddress, socket.port, uuid)
                                 } else {
-                                    // Add new
+                                    Log.d(TAG, "HANDSHAKE: New peer $name added to remotePeers list.")
                                     remotePeers.add(Host(name, socket.inetAddress.hostAddress, socket.port, uuid))
                                 }
                             }
-
                             onMessageReceived("$name joined the chat", null)
                         } catch (e: Exception) {
-                            Log.e(TAG, "HANDSHAKE: Malformed data received: ${e.message}")
+                            Log.e(TAG, "HANDSHAKE: Malformed data received: ${line}. Error: ${e.message}")
                         }
                     }
                     "DISCONNECT" -> {
-                        Log.i(TAG, "DISCONNECT: Received disconnect signal.")
-                        break // Break loop to close socket
+                        Log.i(TAG, "DISCONNECT: Peer $currentPeerUuid requested disconnect.")
+                        break
                     }
                     else -> {
-                        // Regular message
+                        Log.d(TAG, "MESSAGE_REC: Received message (Type: ${parts[0]}).")
                         val senderHost = currentPeerUuid?.let { uuid ->
                             synchronized(remotePeers) { remotePeers.find { it.uuid == uuid } }
                         }
@@ -218,38 +222,38 @@ class PearManager(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "HANDLER: Connection Error: ${e.message}")
+            Log.e(TAG, "HANDLER ($connectionType): Fatal IO/Network Error: ${e.message}", e)
         } finally {
-            // Cleanup resources
-            Log.d(TAG, "HANDLER: Cleaning up connection for $remoteAddr")
+            Log.w(TAG, "HANDLER ($connectionType): Listener stopped for $remoteAddr. Cleaning up...")
             currentPeerUuid?.let {
                 peerSocketMap.remove(it)
                 peerWriterMap.remove(it)
+                Log.d(TAG, "HANDLER: Removed maps entries for UUID $it.")
             }
             try { socket.close() } catch (_: Exception) {}
-
-            // NOTE: We do NOT call connectToPeer here.
-            // The function simply ends, returns to connectToPeer, which triggers the retry logic.
+            Log.d(TAG, "HANDLER: Socket closed.")
         }
     }
+
     // ---------------------------
     // MESSAGING
     // ---------------------------
     private fun sendHandshake(socket: Socket) {
         val msg = "HANDSHAKE|${myHost.uuid}|${myHost.pearName}|${myHost.hostName}|${myHost.portNumber}"
         sendRawMessage(socket, msg)
+        Log.d(TAG, "SENDER: Sent handshake to ${socket.inetAddress.hostAddress}:${socket.port}.")
     }
 
     private fun sendRawMessage(socket: Socket, message: String) {
         scope.launch(Dispatchers.IO) {
             try {
-                // Do NOT use 'use' block or close the writer here!
                 val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
                 writer.write(message)
                 writer.newLine()
-                writer.flush() // Crucial! Push data immediately
+                writer.flush()
+                Log.v(TAG, "SENDER: Raw message sent successfully: ${message.take(20)}...")
             } catch (e: Exception) {
-                Log.e(TAG, "SEND: Error sending raw message: ${e.message}")
+                Log.e(TAG, "SENDER: Error sending raw message to ${socket.inetAddress.hostAddress}: ${e.message}")
             }
         }
     }
@@ -264,98 +268,124 @@ class PearManager(
                         writer.newLine()
                         writer.flush()
                     }
+                    Log.d(TAG, "SENDER: Message sent to ${target.pearName}: ${text.take(20)}...")
                 } catch (e: Exception) {
-                    Log.e(TAG, "SEND: Failed to send to ${target.pearName}")
+                    Log.e(TAG, "SENDER: Failed to send to ${target.pearName}. Error: ${e.message}")
                 }
             }
         } else {
-            Log.w(TAG, "SEND: No active connection to ${target.pearName}")
+            Log.w(TAG, "SENDER: Cannot send to ${target.pearName}. Writer not found or connection is inactive.")
         }
     }
 
+    fun broadcast(message: String) {
+        Log.i(TAG, "BROADCAST: Starting broadcast for message: ${message.take(20)}...")
+
+        // Ensure all network write operations happen asynchronously on the IO dispatcher
+        scope.launch(Dispatchers.IO) {
+            val fullMessage = "[${myHost.pearName} | Broadcast] $message"
+            var successCount = 0
+
+            peerSocketMap.forEach { (uuid, socket) ->
+                val writer = peerWriterMap[uuid]
+
+                if (socket.isConnected && !socket.isClosed && writer != null) {
+                    try {
+                        synchronized(writer) {
+                            writer.write(fullMessage)
+                            writer.newLine()
+                            writer.flush()
+                        }
+                        successCount++
+                    } catch (e: IOException) {
+                        Log.e(TAG, "BROADCAST: Error sending to peer $uuid. Connection likely broken. Error: ${e.message}")
+                    }
+                } else {
+                    Log.w(TAG, "BROADCAST: Skipping peer $uuid (socket status: Connected=${socket.isConnected}, Closed=${socket.isClosed})")
+                }
+            }
+            Log.i(TAG, "BROADCAST: Finished. Successfully sent to $successCount peer(s).")
+        }
+    }
+
+    // ---------------------------
+    // PEER MANAGEMENT
+    // ---------------------------
 
     fun addPeerToList(peer: Host) {
-        Log.d(TAG, "MANAGER: Adding new peer to list: ${peer.pearName}")
+        Log.d(TAG, "PEER_MGT: Request to add new peer: ${peer.pearName} [${peer.uuid}]")
 
-        // 1. Add to the list (Access shared mutable state safely)
         synchronized(remotePeers) {
             if (!remotePeers.any { it.uuid == peer.uuid }) {
                 remotePeers.add(peer)
+                Log.i(TAG, "PEER_MGT: Added ${peer.pearName} to remotePeers list.")
+            } else {
+                Log.w(TAG, "PEER_MGT: Peer ${peer.pearName} already exists in list. Skipping list add.")
             }
         }
 
-        // 2. Start connection attempt in a coroutine
         scope.launch { connectToPeer(peer) }
+        Log.d(TAG, "PEER_MGT: Launched connect routine for ${peer.pearName}.")
     }
 
     fun removePeerFromList(peer: Host) {
-        Log.d(TAG, "MANAGER: Removing peer from list and disconnecting: ${peer.pearName}")
+        Log.d(TAG, "PEER_MGT: Request to remove peer: ${peer.pearName} [${peer.uuid}]")
 
         scope.launch(Dispatchers.IO) {
-            // 1. Send the DISCONNECT signal gracefully
             peerSocketMap[peer.uuid]?.takeIf { !it.isClosed }?.let { socket ->
                 sendRawMessage(socket, "DISCONNECT|${myHost.uuid}")
+                Log.d(TAG, "PEER_MGT: Sent explicit DISCONNECT signal to ${peer.pearName}.")
             }
 
-            // 2. Remove from the central list (Access shared mutable state safely)
             synchronized(remotePeers) {
-                remotePeers.removeIf { it.uuid == peer.uuid }
+                if (remotePeers.removeIf { it.uuid == peer.uuid }) {
+                    Log.i(TAG, "PEER_MGT: Successfully removed ${peer.pearName} from remotePeers list.")
+                } else {
+                    Log.w(TAG, "PEER_MGT: Peer ${peer.pearName} not found in remotePeers list for removal.")
+                }
             }
 
-            // 3. Clean up the connection resources (Socket/Writer)
             cleanUpPeerConnection(peer)
 
             onMessageReceived("${peer.pearName} removed", null)
         }
     }
 
-    // Helper function for cleanup (Updated from original to be suspendable)
     private fun cleanUpPeerConnection(peer: Host) {
-        peerSocketMap.remove(peer.uuid)?.close()
-        peerWriterMap.remove(peer.uuid)?.close()
+        peerSocketMap.remove(peer.uuid)?.close().also {
+            if (it != null) Log.d(TAG, "PEER_MGT: Closed socket for ${peer.pearName}.")
+        }
+        peerWriterMap.remove(peer.uuid)?.close().also {
+            if (it != null) Log.d(TAG, "PEER_MGT: Closed writer for ${peer.pearName}.")
+        }
     }
 
     fun updatePeer(updated: Host) {
-        Log.d(TAG, "MANAGER: Attempting to update peer: ${updated.pearName}")
+        Log.d(TAG, "PEER_MGT: Request to update peer: ${updated.pearName} [${updated.uuid}]")
 
-        // Ensure this runs off the main thread
         scope.launch {
             var existingHost: Host? = null
 
-            // 1. Find and update the host in the main list
             synchronized(remotePeers) {
                 existingHost = remotePeers.find { it.uuid == updated.uuid }
                 if (existingHost != null) {
                     val index = remotePeers.indexOfFirst { it.uuid == updated.uuid }
-                    if (index != -1) remotePeers[index] = updated
-                    Log.d(TAG, "MANAGER: Successfully updated details for ${updated.pearName}.")
+                    remotePeers[index] = updated
+                    Log.i(TAG, "PEER_MGT: Updated details for existing peer ${updated.pearName}.")
                 }
             }
 
             if (existingHost != null) {
-                // 2. Clean up old connection maps
+                Log.d(TAG, "PEER_MGT: Closing old connection before reconnecting with new details.")
                 peerSocketMap.remove(updated.uuid)?.close()
                 peerWriterMap.remove(updated.uuid)
 
-                // 3. Initiate reconnection using the new details
                 connectToPeer(updated)
                 onMessageReceived("Peer details updated: ${updated.pearName}", null)
             } else {
-                // If the peer wasn't found, treat it as a new peer to add
+                Log.w(TAG, "PEER_MGT: Peer ${updated.pearName} not found for update. Treating as new peer.")
                 addPeerToList(updated)
             }
         }
-    }
-
-    fun broadcast(message: String) {
-
-        Log.d(TAG, "BROADCAST: Broadcasting message: ${message.take(30)}...")
-
-        peerSocketMap.forEach { (uuid, socket) ->
-
-            if (socket.isConnected && !socket.isClosed) sendRawMessage(socket, "[Broadcast] $message")
-
-        }
-
     }
 }
