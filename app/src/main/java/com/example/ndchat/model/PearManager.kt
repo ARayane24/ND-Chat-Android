@@ -53,53 +53,80 @@ class PearManager(
     // ---------------------------
     // SERVER
     // ---------------------------
-    private fun startServer() {
-        try {
-            serverSocket = ServerSocket(myHost.portNumber, 10)
-            Log.d(TAG, "SERVER: Listening on port ${myHost.portNumber}...")
-            while (true) {
-                val client = serverSocket!!.accept()
-                incomingSockets[client] = true
-                Log.d(TAG, "SERVER: Incoming connection accepted from ${client.inetAddress.hostAddress}:${client.port}")
-                Thread {
-                    sendHandshake(client)
-                    handleIncoming(client)
-                }.start()
-            }
-        } catch (e: IOException) {
-            if (serverSocket != null && !serverSocket!!.isClosed) {
-                Log.e(TAG, "SERVER: Error during server operation: ${e.message}", e)
-            } else {
-                Log.d(TAG, "SERVER: Server socket closed.")
+        private fun startServer() {
+            try {
+                serverSocket = ServerSocket(myHost.portNumber, 10)
+                Log.d(TAG, "SERVER: Listening on port ${myHost.portNumber}...")
+
+                while (true) {
+                    val client = serverSocket!!.accept()
+                    incomingSockets[client] = true
+                    Log.d(TAG, "SERVER: Incoming connection accepted from ${client.inetAddress.hostAddress}:${client.port}")
+
+                    // Handle handshake and incoming messages in one thread safely
+                    Thread {
+                        try {
+                            if (client.isConnected && !client.isClosed) {
+                                Thread.sleep(50) // slight delay to let the socket stabilize
+                                sendHandshake(client)
+                                handleIncoming(client)
+                            } else {
+                                Log.w(TAG, "SERVER: Socket closed immediately after accept, skipping handshake.")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "SERVER: Error handling incoming socket: ${e.message}")
+                            try { client.close() } catch (_: IOException) {}
+                        }
+                    }.start()
+                }
+            } catch (e: IOException) {
+                if (serverSocket != null && !serverSocket!!.isClosed) {
+                    Log.e(TAG, "SERVER: Error during server operation: ${e.message}", e)
+                } else {
+                    Log.d(TAG, "SERVER: Server socket closed.")
+                }
             }
         }
-    }
+
 
     // ---------------------------
     // CLIENT CONNECTION (Outgoing) with auto-reconnect
     // ---------------------------
-    private fun connectToPeer(peer: Host) {
-        Thread {
-            while (true) {
-                try {
-                    Log.d(TAG, "CLIENT: Attempting connection to ${peer.pearName} [${peer.uuid}] at ${peer.hostName}:${peer.portNumber}")
-                    val socket = Socket(peer.hostName, peer.portNumber)
-                    Log.d(TAG, "CLIENT: Connected to ${peer.pearName}")
+        private fun connectToPeer(peer: Host) {
+            Thread {
+                while (true) {
+                    try {
+                        Log.d(TAG, "CLIENT: Attempting connection to ${peer.pearName} [${peer.uuid}] at ${peer.hostName}:${peer.portNumber}")
+                        val socket = Socket(peer.hostName, peer.portNumber)
 
-                    val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
-                    peerWriterMap[peer.uuid] = writer
-                    peerSocketMap[peer.uuid] = socket
+                        if (socket.isConnected && !socket.isClosed) {
+                            Log.d(TAG, "CLIENT: Connected to ${peer.pearName}")
 
-                    sendHandshake(socket)
-                    handleIncomingWithReconnect(peer, socket)
-                    break
-                } catch (e: IOException) {
-                    Log.w(TAG, "CLIENT: Failed to connect to ${peer.pearName}, retrying in 5s...")
-                    Thread.sleep(5000)
+                            // Register socket and writer safely
+                            val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream()))
+                            peerSocketMap[peer.uuid] = socket
+                            peerWriterMap[peer.uuid] = writer
+
+                            // Delay slightly to avoid immediate write on new socket
+                            Thread.sleep(50)
+                            sendHandshake(socket)
+
+                            // Start listening with auto-reconnect
+                            handleIncomingWithReconnect(peer, socket)
+                            break
+                        } else {
+                            Log.w(TAG, "CLIENT: Socket not connected after creation, retrying in 5s...")
+                            Thread.sleep(5000)
+                        }
+
+                    } catch (e: IOException) {
+                        Log.w(TAG, "CLIENT: Failed to connect to ${peer.pearName}, retrying in 5s... (${e.message})")
+                        Thread.sleep(5000)
+                    }
                 }
-            }
-        }.start()
-    }
+            }.start()
+        }
+
 
     // ---------------------------
     // HANDSHAKE
