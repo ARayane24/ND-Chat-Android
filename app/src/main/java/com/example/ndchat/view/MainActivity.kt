@@ -30,15 +30,18 @@ import com.example.ndchat.ui_elements.ChatScreen
 import com.example.ndchat.ui_elements.HostInputForm
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
             NDChatTheme {
-                // State to hold the final MyHost object
+                // --------------------------
+                // STATE MANAGEMENT
+                // --------------------------
+
                 var myHost by remember { mutableStateOf<Host?>(null) }
 
-                // State for the setup screen inputs
                 var tempName by remember { mutableStateOf("") }
                 var tempHost by remember { mutableStateOf("") }
                 var tempPort by remember { mutableStateOf("55555") }
@@ -46,6 +49,9 @@ class MainActivity : ComponentActivity() {
                 val remotePeers = remember { mutableStateListOf<Host>() }
                 var messages by remember { mutableStateOf(listOf<Message>()) }
 
+                // --------------------------
+                // SETUP SCREEN
+                // --------------------------
                 if (myHost == null) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -55,7 +61,10 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Setup Your Identity", style = MaterialTheme.typography.headlineMedium)
+                            Text(
+                                "Setup Your Identity",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
 
                             HostInputForm(
@@ -73,7 +82,6 @@ class MainActivity : ComponentActivity() {
                                 onClick = {
                                     val p = tempPort.toIntOrNull()
                                     if (tempName.isNotBlank() && tempHost.isNotBlank() && p != null) {
-                                        // Create the Host object and switch screens
                                         myHost = Host(tempName, tempHost, p)
                                     }
                                 },
@@ -83,10 +91,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                }
-                else {
-                    // === CHAT SCREEN ===
-                    // Initialize PearManager only when myHost is ready
+                } else {
+                    // --------------------------
+                    // CHAT SCREEN
+                    // --------------------------
+
                     val pearManager = remember(myHost) {
                         PearManager(
                             myHost = myHost!!,
@@ -98,40 +107,53 @@ class MainActivity : ComponentActivity() {
                     }
 
                     Column(
-                        Modifier
+                        modifier = Modifier
                             .fillMaxSize()
                             .background(Color(0xFFF0F0F0))
                     ) {
                         ChatScreen(
                             myHost = myHost!!,
-                            messages = messages,
+                            initialMessages = messages,
                             pears = remotePeers,
-                            onAddPeer = { peer -> pearManager.apply {   pearManager.addPeerToList(peer) }},
+                            onAddPeer = { peer -> pearManager.addPeerToList(peer) },
                             onSend = { text, isBroadcast, peer ->
                                 if (text.isNotBlank()) {
+                                    // Add the message locally
                                     messages = messages + Message(text, true, myHost!!)
+
+                                    // Send message to peers
                                     if (isBroadcast) pearManager.broadcast(text)
                                     else peer?.let { pearManager.sendToPeer(it, text) }
                                 }
                             },
                             onClearMessages = { messages = listOf() },
-                            // Logic to update local host
                             onEditMyHost = { newName, newHost, newPort ->
                                 myHost?.apply {
                                     pearName = newName
                                     hostName = newHost
                                     portNumber = newPort
                                 }
-                                // Force recomposition by toggling a dummy state or relying on MutableState if Host properties are observable
+                                myHost = myHost // Force recomposition
                             },
-                            onDelete = {
-                                peer -> pearManager.apply {   pearManager.removePeerFromList(peer) }
+                            onDelete = { peer -> pearManager.removePeerFromList(peer) },
+                            onEdit = { updatedPeer -> pearManager.updatePeer(updatedPeer) },
+                            // --------------------------
+                            // VOTING HANDLER
+                            // --------------------------
+                            onPoolCreated = { isBroadcast, peer, voting ->
+                                // Add voting message locally
+                                messages = messages + Message(
+                                    sender = myHost!!,
+                                    message = "",
+                                    voting = voting,
+                                    isSentByMe = true
+                                )
+
+                                // Optionally broadcast the voting to peers
+                                val votingText = "📊 Voting Created: ${voting.title}"
+                                if (isBroadcast) pearManager.broadcast(votingText)
+                                else peer?.let { pearManager.sendToPeer(it, votingText) }
                             },
-                            onEdit = {
-                               newp -> pearManager.apply {
-                                    pearManager.updatePeer(newp)
-                                }
-                            }
                         )
                     }
                 }

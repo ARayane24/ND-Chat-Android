@@ -28,7 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,7 +37,6 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,72 +47,202 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ndchat.R
 import com.example.ndchat.model.Message
+import com.example.ndchat.model.Voting
 
+// -------------------------
+// PEERS PANEL
+// -------------------------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PeersContent(
+    pears: MutableList<Host>,
+    onAddPeer: (Host) -> Unit,
+    onPeerSelected: (Host) -> Unit,
+    onBroadcastSelected: () -> Unit,
+    currentPeer: Host?,
+    isBroadcast: Boolean,
+    onEdit: (Host) -> Unit,
+    onDelete: (Host) -> Unit
+) {
+    // Local states for adding/editing a peer
+    var pearName by remember { mutableStateOf("") }
+    var hostName by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("55555") }
+    var editingPeer by remember { mutableStateOf<Host?>(null) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF2F3F5))
+            .padding(16.dp)
+    ) {
+        Text("Peers", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+
+        // Add/Edit form title
+        Text(
+            if (editingPeer == null) "Add Connection" else "Edit Connection",
+            fontWeight = FontWeight.Bold
+        )
+
+        // Name field
+        OutlinedTextField(
+            value = pearName,
+            onValueChange = { pearName = it },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Host + Port fields
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = hostName,
+                onValueChange = { hostName = it },
+                label = { Text("IP") },
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+            OutlinedTextField(
+                value = port,
+                onValueChange = { port = it },
+                label = { Text("Port") },
+                modifier = Modifier.width(80.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+        }
+
+        // Add / Save Button
+        Button(
+            onClick = {
+                val portInt = port.toIntOrNull() ?: return@Button
+                if (pearName.isBlank()) return@Button
+
+                if (editingPeer == null) {
+                    onAddPeer(Host(pearName, hostName, portInt))
+                } else {
+                    val updatedPeer = editingPeer!!.copy(
+                        pearName = pearName,
+                        hostName = hostName,
+                        portNumber = portInt,
+                        uuid = editingPeer!!.uuid
+                    )
+                    onEdit(updatedPeer)
+                    editingPeer = null
+                }
+
+                pearName = ""
+                hostName = ""
+                port = "55555"
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) { Text(if (editingPeer == null) "Add" else "Save") }
+
+        // Cancel button when editing
+        if (editingPeer != null) {
+            OutlinedButton(
+                onClick = {
+                    editingPeer = null
+                    pearName = ""
+                    hostName = ""
+                    port = "55555"
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) { Text("Cancel") }
+        }
+
+        HorizontalDivider(
+            Modifier.padding(vertical = 16.dp),
+            DividerDefaults.Thickness,
+            DividerDefaults.color
+        )
+
+        // Broadcast item
+        Card(
+            onClick = onBroadcastSelected,
+            colors = CardDefaults.cardColors(
+                containerColor = if (isBroadcast) Color(0xFFFFD180) else Color(0xFFFFF3E0)
+            ),
+            border = if (isBroadcast) BorderStroke(2.dp, Color(0xFFE65100)) else null
+        ) {
+            Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = isBroadcast, onClick = null)
+                Text("📢 Broadcast (All)", modifier = Modifier.padding(start = 8.dp).weight(1f), fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Peers list
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(pears) { peer ->
+                val isSelected = (peer == currentPeer) && !isBroadcast
+                PeerListItem(
+                    peer = peer,
+                    isSelected = isSelected,
+                    onSelect = onPeerSelected,
+                    onEdit = {
+                        editingPeer = it
+                        pearName = it.pearName
+                        hostName = it.hostName
+                        port = it.portNumber.toString()
+                    },
+                    onDelete = onDelete
+                )
+            }
+        }
+    }
+}
+
+// -------------------------
+// CHAT SCREEN
+// -------------------------
 @Composable
 fun ChatScreen(
     myHost: Host,
-    messages: List<Message>,
-    pears: MutableList<Host>, // ✅ FIXED: Changed to MutableList
+    initialMessages: List<Message>,
+    pears: MutableList<Host>,
     onSend: (String, Boolean, Host?) -> Unit,
     onClearMessages: () -> Unit,
     onAddPeer: (Host) -> Unit,
     onEdit: (Host) -> Unit,
     onDelete: (Host) -> Unit,
-    onEditMyHost: (String, String, Int) -> Unit
+    onEditMyHost: (String, String, Int) -> Unit,
+    onPoolCreated: (Boolean, Host?, Voting) -> Unit
 ) {
-    // 1. State
     var isMenuOpen by remember { mutableStateOf(false) }
-
-    // Chat Logic State
     var inputText by remember { mutableStateOf(TextFieldValue("")) }
     var isBroadcast by remember { mutableStateOf(true) }
     var selectedPeer by remember { mutableStateOf<Host?>(null) }
     var showEditMyHostDialog by remember { mutableStateOf(false) }
+    var messages by remember { mutableStateOf(initialMessages) }
+    var showAddPoolDialog by remember { mutableStateOf(false) }
 
-    // 2. Animation Logic
+
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val menuWidth = screenWidth * 0.85f
-
     val chatScreenOffset by animateDpAsState(
         targetValue = if (isMenuOpen) -menuWidth else 0.dp,
         animationSpec = tween(durationMillis = 300),
         label = "SlideAnimation"
     )
 
-    BackHandler(enabled = isMenuOpen) {
-        isMenuOpen = false
-    }
+    BackHandler(enabled = isMenuOpen) { isMenuOpen = false }
 
-    // --- ROOT CONTAINER ---
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF202225))
-    ) {
-
-        // LAYER A: Peers Menu (Underneath - Right Side)
-        Box(
-            modifier = Modifier
-                .width(menuWidth)
-                .fillMaxHeight()
-                .align(Alignment.CenterEnd)
-        ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF202225))) {
+        // Peers menu
+        Box(modifier = Modifier.width(menuWidth).fillMaxHeight().align(Alignment.CenterEnd)) {
             PeersContent(
                 pears = pears,
                 onAddPeer = onAddPeer,
-                onPeerSelected = { peer ->
-                    selectedPeer = peer
+                onPeerSelected = {
+                    selectedPeer = it
                     isBroadcast = false
                     isMenuOpen = false
                 },
@@ -124,12 +253,12 @@ fun ChatScreen(
                 },
                 onEdit = onEdit,
                 onDelete = onDelete,
-                currentPeer = selectedPeer, // ✅ FIXED: Removed TODO
-                isBroadcast = isBroadcast   // ✅ FIXED: Removed TODO
+                currentPeer = selectedPeer,
+                isBroadcast = isBroadcast
             )
         }
 
-        // LAYER B: Chat Screen (Top Layer)
+        // Chat screen content
         Box(
             modifier = Modifier
                 .offset(x = chatScreenOffset)
@@ -143,193 +272,53 @@ fun ChatScreen(
                 isBroadcast = isBroadcast,
                 selectedPeer = selectedPeer,
                 onInputChange = { inputText = it },
-                onSend = { txt, b, p -> onSend(txt, b, p); inputText = TextFieldValue("") },
+                onSend = { txt, b, p ->
+                    if (txt.isNotBlank()) {
+                        val newMsg = Message(sender = myHost, message = txt, isSentByMe = b)
+                        messages = messages + newMsg
+                        inputText = TextFieldValue("")
+                        onSend(txt, b, p)
+                    }
+                },
                 onPeersClick = { isMenuOpen = !isMenuOpen },
                 onEditHostClick = { showEditMyHostDialog = true },
-                onPoolCreated = {b,p -> /*todo*/ }
+                onAddVotingClick = { showAddPoolDialog = true }
             )
 
             if (isMenuOpen) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable(onClick = { isMenuOpen = false })
+                        .clickable { isMenuOpen = false }
                         .background(Color.Black.copy(alpha = 0.1f))
                 )
             }
         }
     }
 
+    // Edit My Host dialog
     if (showEditMyHostDialog) {
-        EditHostDialog(myHost, { showEditMyHostDialog = false }, onEditMyHost)
+        EditHostDialog(myHost, onDismiss = { showEditMyHostDialog = false }) { name, host, port ->
+            onEditMyHost(name, host, port)
+        }
+    }
+
+    if (showAddPoolDialog) {
+        CreateVotingDialog(
+            onDismiss = { showAddPoolDialog = false },
+            onCreate = { voting ->
+                messages = messages + Message(sender = myHost, message = "", voting = voting, isSentByMe = isBroadcast)
+                onPoolCreated(isBroadcast, selectedPeer, voting)
+                showAddPoolDialog = false
+
+            }
+        )
     }
 }
 
-// --- SUB COMPONENT: Peers List ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PeersContent(
-    pears: MutableList<Host>,
-    onAddPeer: (Host) -> Unit,
-    onPeerSelected: (Host) -> Unit,
-    onBroadcastSelected: () -> Unit,
-    currentPeer: Host?,
-    isBroadcast: Boolean,
-    onEdit: (Host) -> Unit,
-    onDelete: (Host) -> Unit
-) {
-    var pearName by remember { mutableStateOf("") }
-    var hostName by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("55555") }
-
-    // 👇 NEW: track which peer is currently being edited
-    var editingPeer by remember { mutableStateOf<Host?>(null) }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF2F3F5))
-            .padding(16.dp)
-    ) {
-        Text("Peers", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-
-        // Add / Edit Form
-        Text(
-            if (editingPeer == null) "Add Connection" else "Edit Connection",
-            fontSize = TextUnit.Unspecified,
-            fontWeight = FontWeight.Bold
-        )
-
-        OutlinedTextField(
-            value = pearName,
-            onValueChange = { pearName = it },
-            maxLines = 1,
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color(red = 0, green = 200, blue = 20), unfocusedTextColor = Color(red = 0, green = 200, blue = 20)),
-        )
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = hostName,
-                onValueChange = { hostName = it },
-                maxLines = 1,
-                label = { Text("IP") },
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-
-            OutlinedTextField(
-                value = port,
-                onValueChange = { port = it },
-                maxLines = 1,
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.Blue, unfocusedTextColor = Color.Blue),
-                label = { Text("Port") },
-                modifier = Modifier.width(80.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-        }
-
-        Button(
-            onClick = {
-                if (pearName.isBlank() || port.toIntOrNull() == null) return@Button
-
-                if (editingPeer == null) {
-                    // ADD NEW PEER
-                    val newPeer = Host(pearName, hostName, port.toInt())
-                    onAddPeer(newPeer)
-                } else {
-                    // SAVE EDITS
-                    val updatedPeer = editingPeer!!.copy(
-                        pearName = pearName,
-                        hostName = hostName,
-                        portNumber = port.toInt(),
-                        uuid = editingPeer!!.uuid
-                    )
-                    onEdit(updatedPeer)
-                    // Exit edit mode
-                    editingPeer = null
-                }
-
-                // Reset fields
-                pearName = ""
-                hostName = ""
-                port = "55555"
-            },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Text(if (editingPeer == null) "Add" else "Save")
-        }
-
-        if (editingPeer != null) {
-            OutlinedButton (
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                onClick = {
-                    editingPeer = null
-                    pearName = ""
-                    hostName = ""
-                    port = "55555"
-                },
-            ) {
-                Text("Cancel")
-            }
-        }
-
-        HorizontalDivider(Modifier.padding(vertical = 16.dp))
-
-        // PEERS LIST
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-            // BROADCAST
-            item {
-                Card(
-                    onClick = onBroadcastSelected,
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isBroadcast) Color(0xFFFFD180) else Color(0xFFFFF3E0)
-                    ),
-                    border = if (isBroadcast) BorderStroke(2.dp, Color(0xFFE65100)) else null
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = isBroadcast, onClick = null)
-
-                        Text(
-                            "📢 Broadcast (All)",
-                            modifier = Modifier.padding(start = 8.dp).weight(1f),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            // PEERS
-            items(pears) { peer ->
-                val isSelected = (peer == currentPeer) && !isBroadcast
-
-                PeerListItem(
-                    peer = peer,
-                    isSelected = isSelected,
-                    onSelect = onPeerSelected,
-                    onEdit = { p ->
-                        editingPeer = p
-                        pearName = p.pearName
-                        hostName = p.hostName
-                        port = p.portNumber.toString()
-                    },
-                    onDelete = onDelete
-                )
-            }
-        }
-    }
-}
-
-
-
-// --- SUB COMPONENT: Chat UI ---
+// -------------------------
+// CHAT CONTENT
+// -------------------------
 @Composable
 fun ChatContent(
     myHost: Host,
@@ -339,175 +328,136 @@ fun ChatContent(
     selectedPeer: Host?,
     onInputChange: (TextFieldValue) -> Unit,
     onSend: (String, Boolean, Host?) -> Unit,
-    onPoolCreated:(Boolean, Host?) -> Unit,
     onPeersClick: () -> Unit,
-    onEditHostClick: () -> Unit
+    onEditHostClick: () -> Unit,
+    onAddVotingClick: () -> Unit
 ) {
-    Column(Modifier
-        .fillMaxSize()
-        .background(Color(0xFFFAFAFA))) {
-        // Top Bar
+    Column(Modifier.fillMaxSize().background(Color(0xFFFAFAFA))) {
+
+        // ---------- TOP BAR ----------
         Row(
-            modifier = Modifier
+            Modifier
                 .fillMaxWidth()
                 .height(60.dp)
                 .background(Color.White)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(Modifier
-                .weight(1f)
-                .clickable { onEditHostClick() }) {
+            Column(
+                Modifier.weight(1f).clickable(onClick = onEditHostClick)
+            ) {
                 Text(
                     if (isBroadcast) "Global Chat" else selectedPeer?.pearName ?: "Chat",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
+                    fontWeight = FontWeight.Bold
                 )
-                Text("Me: ${myHost.pearName}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("Me: ${myHost.pearName}", color = Color.Gray, fontSize = 12.sp)
             }
-            Spacer(Modifier.width(8.dp))
+
             IconButton(onClick = onPeersClick) {
-                Text("👥", fontSize = TextUnit.Unspecified)
+                Text("👥")
             }
         }
-        Divider()
 
-        // Messages Area
+        HorizontalDivider()
+
+        // ---------- MESSAGES ----------
         LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
             reverseLayout = true
         ) {
             items(messages.reversed()) { msg ->
-                // Assuming MessageBubble is defined elsewhere or uses basic Text
-                if (msg.sender != null)
-                    MessageBubble(message = msg)
-                else
-                    ConnectionStateMessage(message = msg)
+                when {
+                    msg.voting != null ->
+                        VotingMessage(
+                            voting = msg.voting!!,
+                            userHasVoted = msg.voting!!.hasHostVoted(myHost),
+                            onVote = { option ->
+                                msg.voting!!.addVote(option, myHost)
+                            }
+                        )
 
+                    msg.sender != null -> MessageBubble(msg)
+                    else -> ConnectionStateMessage(msg)
+                }
             }
         }
 
-        // Input Area
+        // ---------- INPUT ----------
         Row(
-            Modifier
-                .background(Color.White)
-                .padding(8.dp)
-                .fillMaxWidth(), // Ensure the row fills the width
-            verticalAlignment = Alignment.Bottom // Use Alignment.Bottom for multi-line stability
+            Modifier.fillMaxWidth().background(Color.White).padding(8.dp),
+            verticalAlignment = Alignment.Bottom
         ) {
 
-            // 1. Add Pool Button (Left Icon)
-            if( inputText.text.isBlank())
-                IconButton(
-                    onClick = { onPoolCreated(isBroadcast, selectedPeer) },
-                    enabled = inputText.text.isBlank(), // Only enabled when the text field is empty
-                    modifier = Modifier.align(Alignment.CenterVertically),
-
-                ) {
+            if (inputText.text.isBlank()) {
+                IconButton(onClick = onAddVotingClick) {
                     Icon(
-                        painter = painterResource(id = R.drawable.add_button),
-                        contentDescription = "Add pool",
+                        painterResource(R.drawable.add_button),
+                        contentDescription = "Add voting",
                         tint = Color.Unspecified
                     )
                 }
+            }
 
-            // 2. Telegram-style BasicTextField (replaces the Box/TextField block)
             BasicTextField(
                 value = inputText,
-                onValueChange = onInputChange, // Accepts TextFieldValue
-
-                // Modifier setup: takes up available space and sets min height
+                onValueChange = onInputChange,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 4.dp) // Add padding around the text field background
+                    .padding(horizontal = 4.dp)
                     .heightIn(min = 48.dp),
-
-                textStyle = LocalTextStyle.current.copy(
-                    color = Color.Black,
-                    fontSize = 16.sp
-                ),
-                singleLine = false,
-                maxLines = 5,
-                minLines = 1,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-
-                // 🔑 The DecorationBox for custom padding, shape, and background
-                decorationBox = { innerTextField ->
+                textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
+                decorationBox = { inner ->
                     Box(
-                        modifier = Modifier
+                        Modifier
                             .fillMaxWidth()
-                            // Manually apply the background and pill shape
-                            .background(
-                                color = Color(0xFFF0F0F0),
-                                shape = RoundedCornerShape(24.dp)
-                            )
-                            .heightIn(min = 48.dp),
-                        contentAlignment = Alignment.CenterStart
+                            .background(Color(0xFFF0F0F0), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
-                        // Manually apply the desired compact padding (16.dp horizontal, 10.dp vertical)
-                        val compactPadding = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-
-                        // Placeholder
                         if (inputText.text.isEmpty()) {
-                            Box(modifier = compactPadding) {
-                                Text(
-                                    "Message...",
-                                    color = Color.Gray,
-                                    fontSize = 16.sp
-                                )
-                            }
+                            Text("Message...", color = Color.Gray)
                         }
-
-                        // Actual editable text field
-                        Box(modifier = compactPadding) {
-                            innerTextField()
-                        }
+                        inner()
                     }
                 }
             )
 
-            // 3. Send Button (Right Icon)
-            if (inputText.text.isNotBlank())
+            if (inputText.text.isNotBlank()) {
                 IconButton(
-                    onClick = { onSend(inputText.text.trim(), isBroadcast, selectedPeer) },
-                    enabled = inputText.text.isNotBlank(),
-                    modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .height(30.dp)
-                        .width(30.dp)
+                    onClick = { onSend(inputText.text.trim(), isBroadcast, selectedPeer) }
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.send_button),
-                        contentDescription = "send button",
-                        tint = Color.Unspecified,
+                        painterResource(R.drawable.send_button),
+                        contentDescription = "Send",
+                        tint = Color.Unspecified
                     )
                 }
+            }
         }
     }
 }
 
+
+// -------------------------
+// EDIT HOST DIALOG
+// -------------------------
 @Composable
 fun EditHostDialog(myHost: Host, onDismiss: () -> Unit, onSave: (String, String, Int) -> Unit) {
     var editName by remember { mutableStateOf(myHost.pearName) }
     var editHost by remember { mutableStateOf(myHost.hostName) }
-    // Convert Int to String for the TextField, handle default if needed
     var editPort by remember { mutableStateOf(myHost.portNumber.toString()) }
 
     HostDialog(
         title = "Edit my host",
         onSave = {
-            // Safely convert port back to Int
             val portInt = editPort.toIntOrNull() ?: myHost.portNumber
             onSave(editName, editHost, portInt)
         },
         pearName = editName,
         hostName = editHost,
-        port = editPort.toIntOrNull() ?: 0, // Pass int to the UI
-        onPearNameChange = { v -> editName = v },
-        onHostNameChange = { v -> editHost = v }, // ✅ FIXED: updates editHost
-        onPortChange = { v -> editPort = v },     // ✅ FIXED: updates editPort
+        port = editPort.toIntOrNull() ?: 0,
+        onPearNameChange = { editName = it },
+        onHostNameChange = { editHost = it },
+        onPortChange = { editPort = it },
         onDismiss = onDismiss
     )
 }

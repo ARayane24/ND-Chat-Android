@@ -4,9 +4,10 @@ import Host // Assuming Host is defined elsewhere
 import java.time.LocalDateTime
 
 data class Message(
-    val message: String,
-    val isSentByMe: Boolean,
-    val sender: Host?,
+    var message: String,
+    var isSentByMe: Boolean,
+    var sender: Host?,
+    var voting: Voting? = null,
     // Using LocalDateTime requires API Desugaring for support below Android O (API 26)
-    val dateTime: LocalDateTime = LocalDateTime.now()
+    var dateTime: LocalDateTime = LocalDateTime.now()
 )
