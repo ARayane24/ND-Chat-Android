@@ -11,4 +11,12 @@ data class VotingOption(
     override fun toString(): String {
         return "{$optionName, $hostsList}"
     }
+
+     override fun equals(other: Any?): Boolean {
+         return if (other is VotingOption)
+             this.optionName.equals( other.optionName)
+         else false
+     }
+
+
 }

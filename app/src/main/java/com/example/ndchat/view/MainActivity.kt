@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.ndchat.model.Message
-import com.example.ndchat.model.PearManager
+import com.example.ndchat.model.PeerManager
 import com.example.ndchat.ui.theme.NDChatTheme
 import com.example.ndchat.ui_elements.ChatScreen
 import com.example.ndchat.ui_elements.HostInputForm
@@ -96,20 +98,36 @@ class MainActivity : ComponentActivity() {
                     // CHAT SCREEN
                     // --------------------------
 
-                    val pearManager = remember(myHost) {
-                        PearManager(
+
+
+                    val PeerManager = remember(myHost) {
+                        PeerManager(
                             myHost = myHost!!,
                             remotePeers = remotePeers,
                             onMessageReceived = { message, sender ->
-                                messages = messages.map {
-                                    if (it.voting?.title == message.voting?.title)
-                                        message
-                                    else it
-                                } + if (messages.none { it == message }) listOf(message) else emptyList()
+                                messages = if (message.voting != null) {
+                                    // Remove existing message with the same voting title
+                                    messages.filter { !(it.equals( message)) } + message
+                                } else {
+                                    // Just add the message if it's new and has no voting
+                                    if (messages.none { it == message }) messages + message else messages
+                                }
                             }
 
-                        ).apply { start() }
+                        )
                     }
+
+
+                    LaunchedEffect(PeerManager) {
+                        PeerManager.start()
+                    }
+
+                    DisposableEffect(PeerManager) {
+                        onDispose {
+                            PeerManager.stop()
+                        }
+                    }
+
 
                     Column(
                         modifier = Modifier
@@ -120,16 +138,14 @@ class MainActivity : ComponentActivity() {
                             myHost = myHost!!,
                             initialMessages = messages,
                             pears = remotePeers,
-                            onAddPeer = { peer -> pearManager.addPeerToList(peer) },
+                            onAddPeer = { peer -> PeerManager.addPeerToList(peer) },
                             onSend = { msg, isBroadcast, peer ->
-                                    // Add the message locally
-                                    if (messages.contains(msg))
-                                        messages -= msg
+
                                     messages = messages + msg
 
                                     // Send message to peers
-                                    if (isBroadcast) pearManager.broadcast(msg)
-                                    else peer?.let { pearManager.sendToPeer(it, msg) }
+                                    if (isBroadcast) PeerManager.broadcast(msg)
+                                    else peer?.let { PeerManager.sendToPeer(it, msg) }
                             },
                             onClearMessages = { messages = listOf() },
                             onEditMyHost = { newName, newHost, newPort ->
@@ -140,24 +156,25 @@ class MainActivity : ComponentActivity() {
                                 }
                                 myHost = myHost // Force recomposition
                             },
-                            onDelete = { peer -> pearManager.removePeerFromList(peer) },
-                            onEdit = { updatedPeer -> pearManager.updatePeer(updatedPeer) },
+                            onDelete = { peer -> PeerManager.removePeerFromList(peer) },
+                            onEdit = { updatedPeer -> PeerManager.updatePeer(updatedPeer) },
                             // --------------------------
                             // VOTING HANDLER
                             // --------------------------
                             onPoolCreated = { isBroadcast, peer, voting ->
                                 // Add voting message locally
-                                messages = messages + Message(
+                                val votingText = "📊 Voting Created: ${voting.title}"
+
+                                var voteMsg =  Message(
                                     sender = myHost!!,
-                                    message = "",
-                                    voting = voting,
-                                    isSentByMe = true
+                                    message = votingText,
+                                    voting = voting
                                 )
+                                messages = messages + voteMsg
 
                                 // Optionally broadcast the voting to peers
-                                val votingText = "📊 Voting Created: ${voting.title}"
-                                if (isBroadcast) pearManager.broadcast(Message(message=votingText))
-                                else peer?.let { pearManager.sendToPeer(it, Message(message=votingText)) }
+                                if (isBroadcast) PeerManager.broadcast(voteMsg)
+                                else peer?.let { PeerManager.sendToPeer(it, voteMsg) }
                             },
                         )
                     }

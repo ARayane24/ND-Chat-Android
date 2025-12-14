@@ -16,12 +16,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ndchat.model.Message
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 
 @Composable
 fun MessageBubble(message: Message) {
     val isBroadcast = message.message.contains("Broadcast")
+    val dateTime = Instant.ofEpochMilli(message.dateTime)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
+
     val backgroundColor = if (message.isSentByMe) Color(0xFFC6E4F8) else if(isBroadcast) Color(0xFFDCF8C6) else Color.White
     val alignment = if (message.isSentByMe) Alignment.TopStart else Alignment.TopEnd
     val formatter = DateTimeFormatter.ofPattern("dd MMM, HH:mm")
@@ -59,7 +65,7 @@ fun MessageBubble(message: Message) {
                     }
             }
             Text(
-                text =  message.dateTime.format(formatter) ,
+                text =  dateTime.format(formatter) ,
                 fontSize = 13.sp,
                 color = Color.Gray
             )
@@ -73,6 +79,9 @@ fun MessageBubble(message: Message) {
 @Composable
 fun ConnectionStateMessage(message: Message) {
     val formatter = DateTimeFormatter.ofPattern("dd MMM, HH:mm")
+    val dateTime = Instant.ofEpochMilli(message.dateTime)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
     Box(
         contentAlignment = Alignment.TopCenter,
@@ -89,7 +98,7 @@ fun ConnectionStateMessage(message: Message) {
                 color = Color.Gray
             )
             Text(
-                text =  message.dateTime.format(formatter) ,
+                text =  dateTime.format(formatter) ,
                 fontSize = 10.sp,
                 color = Color.Gray
             )
