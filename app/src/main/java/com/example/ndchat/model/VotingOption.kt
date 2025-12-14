@@ -4,9 +4,10 @@ import Host
 import java.util.LinkedList
 
 data class VotingOption(
-    var optionName : String,
-    var hostsList: LinkedList<Host>
-) {
+    val optionName: String,
+    val hostsList: LinkedList<Host> = LinkedList<Host>()
+)
+ {
     override fun toString(): String {
         return "{$optionName, $hostsList}"
     }

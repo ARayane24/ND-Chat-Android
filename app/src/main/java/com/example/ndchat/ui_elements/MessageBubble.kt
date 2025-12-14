@@ -45,7 +45,7 @@ fun MessageBubble(message: Message) {
                         color = Color.Black
                     )
                 else
-                    Column (){
+                    Column {
                         Text(
                             text = message.message,
                             fontSize = 16.sp,

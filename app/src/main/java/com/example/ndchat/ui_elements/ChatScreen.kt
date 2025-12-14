@@ -143,7 +143,9 @@ fun PeersContent(
                 hostName = ""
                 port = "55555"
             },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
         ) { Text(if (editingPeer == null) "Add" else "Save") }
 
         // Cancel button when editing
@@ -155,7 +157,9 @@ fun PeersContent(
                     hostName = ""
                     port = "55555"
                 },
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
             ) { Text("Cancel") }
         }
 
@@ -173,9 +177,13 @@ fun PeersContent(
             ),
             border = if (isBroadcast) BorderStroke(2.dp, Color(0xFFE65100)) else null
         ) {
-            Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = isBroadcast, onClick = null)
-                Text("📢 Broadcast (All)", modifier = Modifier.padding(start = 8.dp).weight(1f), fontWeight = FontWeight.Bold)
+                Text("📢 Broadcast (All)", modifier = Modifier
+                    .padding(start = 8.dp)
+                    .weight(1f), fontWeight = FontWeight.Bold)
             }
         }
 
@@ -208,7 +216,7 @@ fun ChatScreen(
     myHost: Host,
     initialMessages: List<Message>,
     pears: MutableList<Host>,
-    onSend: (String, Boolean, Host?) -> Unit,
+    onSend: (Message, Boolean, Host?) -> Unit,
     onClearMessages: () -> Unit,
     onAddPeer: (Host) -> Unit,
     onEdit: (Host) -> Unit,
@@ -221,7 +229,6 @@ fun ChatScreen(
     var isBroadcast by remember { mutableStateOf(true) }
     var selectedPeer by remember { mutableStateOf<Host?>(null) }
     var showEditMyHostDialog by remember { mutableStateOf(false) }
-    var messages by remember { mutableStateOf(initialMessages) }
     var showAddPoolDialog by remember { mutableStateOf(false) }
 
 
@@ -235,9 +242,14 @@ fun ChatScreen(
 
     BackHandler(enabled = isMenuOpen) { isMenuOpen = false }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF202225))) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Color(0xFF202225))) {
         // Peers menu
-        Box(modifier = Modifier.width(menuWidth).fillMaxHeight().align(Alignment.CenterEnd)) {
+        Box(modifier = Modifier
+            .width(menuWidth)
+            .fillMaxHeight()
+            .align(Alignment.CenterEnd)) {
             PeersContent(
                 pears = pears,
                 onAddPeer = onAddPeer,
@@ -267,19 +279,12 @@ fun ChatScreen(
         ) {
             ChatContent(
                 myHost = myHost,
-                messages = messages,
+                messages = initialMessages,
                 inputText = inputText,
                 isBroadcast = isBroadcast,
                 selectedPeer = selectedPeer,
                 onInputChange = { inputText = it },
-                onSend = { txt, b, p ->
-                    if (txt.isNotBlank()) {
-                        val newMsg = Message(sender = myHost, message = txt, isSentByMe = b)
-                        messages = messages + newMsg
-                        inputText = TextFieldValue("")
-                        onSend(txt, b, p)
-                    }
-                },
+                onSend = {v1,v2,v3 -> onSend(v1,v2,v3); inputText = TextFieldValue("")},
                 onPeersClick = { isMenuOpen = !isMenuOpen },
                 onEditHostClick = { showEditMyHostDialog = true },
                 onAddVotingClick = { showAddPoolDialog = true }
@@ -307,7 +312,6 @@ fun ChatScreen(
         CreateVotingDialog(
             onDismiss = { showAddPoolDialog = false },
             onCreate = { voting ->
-                messages = messages + Message(sender = myHost, message = "", voting = voting, isSentByMe = isBroadcast)
                 onPoolCreated(isBroadcast, selectedPeer, voting)
                 showAddPoolDialog = false
 
@@ -327,12 +331,14 @@ fun ChatContent(
     isBroadcast: Boolean,
     selectedPeer: Host?,
     onInputChange: (TextFieldValue) -> Unit,
-    onSend: (String, Boolean, Host?) -> Unit,
+    onSend: (Message, Boolean, Host?) -> Unit,
     onPeersClick: () -> Unit,
     onEditHostClick: () -> Unit,
     onAddVotingClick: () -> Unit
 ) {
-    Column(Modifier.fillMaxSize().background(Color(0xFFFAFAFA))) {
+    Column(Modifier
+        .fillMaxSize()
+        .background(Color(0xFFFAFAFA))) {
 
         // ---------- TOP BAR ----------
         Row(
@@ -344,7 +350,9 @@ fun ChatContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                Modifier.weight(1f).clickable(onClick = onEditHostClick)
+                Modifier
+                    .weight(1f)
+                    .clickable(onClick = onEditHostClick)
             ) {
                 Text(
                     if (isBroadcast) "Global Chat" else selectedPeer?.pearName ?: "Chat",
@@ -362,19 +370,33 @@ fun ChatContent(
 
         // ---------- MESSAGES ----------
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp),
             reverseLayout = true
         ) {
             items(messages.reversed()) { msg ->
+
                 when {
-                    msg.voting != null ->
+                    msg.voting != null -> {
+
+                        var votingState by remember {
+                            mutableStateOf(msg.voting!!)
+                        }
+                        var hasVoted by remember { mutableStateOf(false) }
                         VotingMessage(
-                            voting = msg.voting!!,
-                            userHasVoted = msg.voting!!.hasHostVoted(myHost),
+                            voting = votingState,
+                            userHasVoted = hasVoted || votingState.hasHostVoted(myHost),
                             onVote = { option ->
-                                msg.voting!!.addVote(option, myHost)
+                                votingState = votingState.apply {
+                                    addVote(option, myHost)
+                                }
+                                hasVoted = true
+                                onSend(msg, isBroadcast, selectedPeer)
                             }
                         )
+                    }
+
 
                     msg.sender != null -> MessageBubble(msg)
                     else -> ConnectionStateMessage(msg)
@@ -384,9 +406,13 @@ fun ChatContent(
 
         // ---------- INPUT ----------
         Row(
-            Modifier.fillMaxWidth().background(Color.White).padding(8.dp),
+            Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(8.dp),
             verticalAlignment = Alignment.Bottom
-        ) {
+        )
+        {
 
             if (inputText.text.isBlank()) {
                 IconButton(onClick = onAddVotingClick) {
@@ -423,7 +449,7 @@ fun ChatContent(
 
             if (inputText.text.isNotBlank()) {
                 IconButton(
-                    onClick = { onSend(inputText.text.trim(), isBroadcast, selectedPeer) }
+                    onClick = { onSend(Message(inputText.text, true, myHost), isBroadcast, selectedPeer) }
                 ) {
                     Icon(
                         painterResource(R.drawable.send_button),

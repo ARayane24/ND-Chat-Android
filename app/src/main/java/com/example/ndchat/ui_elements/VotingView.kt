@@ -13,6 +13,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,61 +35,94 @@ import com.example.ndchat.model.VotingOption
 fun VotingMessage(
     voting: Voting,
     onVote: (VotingOption) -> Unit,
-    userHasVoted: Boolean = false // disable voting if the user already voted
+    userHasVoted: Boolean
 ) {
+    val totalVotes =
+        voting.options.sumOf { it.hostsList.size }.coerceAtLeast(1)
+
     Card(
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFEFEF))
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFEFEFEF)
+        )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(voting.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+            Text(
+                text = voting.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+
             if (voting.description.isNotBlank()) {
-                Text(voting.description, fontSize = 14.sp, color = Color.Gray)
+                Text(
+                    text = voting.description,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val totalVotes = voting.options.sumOf { it.hostsList.size }.coerceAtLeast(1)
-
             voting.options.forEach { option ->
-                var animatedProgress by remember { mutableStateOf(0f) }
 
-                // Animate progress
-                LaunchedEffect(option.hostsList.size) {
-                    animatedProgress = option.hostsList.size.toFloat() / totalVotes
+                // 🔹 Stable animation per option
+                var animatedProgress by remember(option) {
+                    mutableStateOf(0f)
                 }
 
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                LaunchedEffect(option.hostsList.size) {
+                    animatedProgress =
+                        option.hostsList.size.toFloat() / totalVotes
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(option.optionName, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                        Text("${option.hostsList.size}", fontSize = 12.sp, color = Color.Gray)
+                        Text(
+                            text = option.optionName,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Text(
+                            text = "${option.hostsList.size}",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     LinearProgressIndicator(
-                        progress = animatedProgress,
+                        progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
                         color = Color(0xFF4CAF50),
-                        trackColor = Color(0xFFD6D6D6)
+                        trackColor = Color(0xFFD6D6D6),
+                        strokeCap =
+                            ProgressIndicatorDefaults.LinearStrokeCap
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
                     if (!userHasVoted) {
+                        Spacer(modifier = Modifier.height(6.dp))
+
                         Button(
                             onClick = { onVote(option) },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF2196F3)
+                            )
                         ) {
                             Text("Vote", color = Color.White)
                         }
@@ -98,6 +132,7 @@ fun VotingMessage(
         }
     }
 }
+
 
 
 

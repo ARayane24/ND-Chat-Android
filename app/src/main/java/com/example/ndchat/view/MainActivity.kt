@@ -100,9 +100,14 @@ class MainActivity : ComponentActivity() {
                         PearManager(
                             myHost = myHost!!,
                             remotePeers = remotePeers,
-                            onMessageReceived = { msg, sender ->
-                                messages = messages + Message(msg, false, sender)
+                            onMessageReceived = { message, sender ->
+                                messages = messages.map {
+                                    if (it.voting?.title == message.voting?.title)
+                                        message
+                                    else it
+                                } + if (messages.none { it == message }) listOf(message) else emptyList()
                             }
+
                         ).apply { start() }
                     }
 
@@ -116,15 +121,15 @@ class MainActivity : ComponentActivity() {
                             initialMessages = messages,
                             pears = remotePeers,
                             onAddPeer = { peer -> pearManager.addPeerToList(peer) },
-                            onSend = { text, isBroadcast, peer ->
-                                if (text.isNotBlank()) {
+                            onSend = { msg, isBroadcast, peer ->
                                     // Add the message locally
-                                    messages = messages + Message(text, true, myHost!!)
+                                    if (messages.contains(msg))
+                                        messages -= msg
+                                    messages = messages + msg
 
                                     // Send message to peers
-                                    if (isBroadcast) pearManager.broadcast(text)
-                                    else peer?.let { pearManager.sendToPeer(it, text) }
-                                }
+                                    if (isBroadcast) pearManager.broadcast(msg)
+                                    else peer?.let { pearManager.sendToPeer(it, msg) }
                             },
                             onClearMessages = { messages = listOf() },
                             onEditMyHost = { newName, newHost, newPort ->
@@ -151,8 +156,8 @@ class MainActivity : ComponentActivity() {
 
                                 // Optionally broadcast the voting to peers
                                 val votingText = "📊 Voting Created: ${voting.title}"
-                                if (isBroadcast) pearManager.broadcast(votingText)
-                                else peer?.let { pearManager.sendToPeer(it, votingText) }
+                                if (isBroadcast) pearManager.broadcast(Message(message=votingText))
+                                else peer?.let { pearManager.sendToPeer(it, Message(message=votingText)) }
                             },
                         )
                     }

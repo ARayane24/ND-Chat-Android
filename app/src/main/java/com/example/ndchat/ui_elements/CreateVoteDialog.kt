@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -22,9 +25,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.ndchat.model.Voting
 import com.example.ndchat.model.VotingOption
 import java.util.LinkedList
@@ -38,98 +43,108 @@ fun CreateVotingDialog(
     var description by remember { mutableStateOf("") }
     var options by remember { mutableStateOf(listOf("", "")) }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
+    Dialog(onDismissRequest = onDismiss) {
 
-            Text(
-                "Create Voting",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
+        val scrollState = rememberScrollState()
+        val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
-            Spacer(Modifier.height(12.dp))
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .heightIn(max = screenHeight * 0.8f), // 👈 limits height
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(scrollState) // 👈 makes it scrollable
+            ) {
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description (optional)") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Text("Options", fontWeight = FontWeight.Medium)
-
-            options.forEachIndexed { index, optionText ->
-                OutlinedTextField(
-                    value = optionText,
-                    onValueChange = { newText ->
-                        options = options.toMutableList().apply {
-                            this[index] = newText
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    label = { Text("Option ${index + 1}") }
+                Text(
+                    "Create Voting",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
                 )
-            }
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
-            TextButton(
-                onClick = { options = options + "" }
-            ) {
-                Text("+ Add option")
-            }
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Text("Options", fontWeight = FontWeight.Medium)
+
+                options.forEachIndexed { index, optionText ->
+                    OutlinedTextField(
+                        value = optionText,
+                        onValueChange = { newText ->
+                            options = options.toMutableList().apply {
+                                this[index] = newText
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        label = { Text("Option ${index + 1}") }
+                    )
                 }
 
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-                Button(
-                    enabled = title.isNotBlank() && options.all { it.isNotBlank() },
-                    onClick = {
-                        val voting = Voting(
-                            title = title,
-                            description = description,
-                            options = options.map { option ->
-                                VotingOption(
-                                    optionName = option,
-                                    hostsList = LinkedList<Host>()
-                                )
-                            }
-                        )
-                        onCreate(voting)
-                    }
+                TextButton(onClick = { options = options + "" }) {
+                    Text("+ Add option")
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
                 ) {
-                    Text("Create")
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Button(
+                        enabled = title.isNotBlank() && options.all { it.isNotBlank() },
+                        onClick = {
+                            val voting = Voting(
+                                title = title,
+                                description = description,
+                                options = options.map { option ->
+                                    VotingOption(
+                                        optionName = option,
+                                        hostsList = LinkedList<Host>()
+                                    )
+                                }
+                            )
+                            onCreate(voting)
+                        }
+                    ) {
+                        Text("Create")
+                    }
                 }
             }
         }
     }
+
 }
 
