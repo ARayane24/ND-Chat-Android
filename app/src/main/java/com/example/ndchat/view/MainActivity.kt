@@ -2,6 +2,7 @@ package com.example.ndchat.view
 
 import Host
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
                                 onPearNameChange = { tempName = it },
                                 hostName = tempHost,
                                 onHostNameChange = { tempHost = it },
-                                port = tempPort.toIntOrNull(),
+                                port = tempPort,
                                 onPortChange = { tempPort = it }
                             )
 
@@ -112,6 +113,9 @@ class MainActivity : ComponentActivity() {
                                     // Just add the message if it's new and has no voting
                                     if (messages.none { it == message }) messages + message else messages
                                 }
+                            },
+                            toastMessage = { message ->
+                                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                             }
 
                         )
@@ -155,8 +159,14 @@ class MainActivity : ComponentActivity() {
                                     portNumber = newPort
                                 }
                                 myHost = myHost // Force recomposition
+
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Your profile has been updated",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             },
-                            onDelete = { peer -> PeerManager.removePeerFromList(peer) },
+                            onDelete = { peer -> { PeerManager.removePeerFromList(peer) } },
                             onEdit = { updatedPeer -> PeerManager.updatePeer(updatedPeer) },
                             // --------------------------
                             // VOTING HANDLER

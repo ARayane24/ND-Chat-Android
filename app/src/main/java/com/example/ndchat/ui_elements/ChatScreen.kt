@@ -1,6 +1,7 @@
 package com.example.ndchat.ui_elements
 
 import Host
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -30,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuDefaults.textFieldColors
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,6 +60,10 @@ import androidx.compose.ui.unit.sp
 import com.example.ndchat.R
 import com.example.ndchat.model.Message
 import com.example.ndchat.model.Voting
+import com.example.ndchat.utils.isIpInputAllowed
+import com.example.ndchat.utils.isPortAvailable
+import com.example.ndchat.utils.isValidAndFreePort
+import com.example.ndchat.utils.isValidIPv4
 
 // -------------------------
 // PEERS PANEL
@@ -77,6 +84,9 @@ fun PeersContent(
     var pearName by remember { mutableStateOf("") }
     var hostName by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("55555") }
+    var portError by remember { mutableStateOf<String?>(null) }
+    var ipError by remember { mutableStateOf<String?>(null) }
+
     var editingPeer by remember { mutableStateOf<Host?>(null) }
 
     Column(
@@ -98,6 +108,8 @@ fun PeersContent(
         OutlinedTextField(
             value = pearName,
             onValueChange = { pearName = it },
+            colors = textFieldColors(focusedTextColor = Color.Black,focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White  , unfocusedTextColor = Color.Black),
             label = { Text("Name") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -106,39 +118,121 @@ fun PeersContent(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = hostName,
-                onValueChange = { hostName = it },
+                onValueChange = { newValue ->
+
+                    // ✅ Allow only digits and dots
+                    if (!isIpInputAllowed(newValue)) return@OutlinedTextField
+
+                    hostName = newValue
+
+                    ipError = when {
+                        hostName.isEmpty() -> null
+                        !isValidIPv4(hostName) ->
+                            "Invalid IPv4 address (e.g. 192.168.1.1)"
+                        else -> null
+                    }
+                },
                 label = { Text("IP") },
+                isError = ipError != null,
                 modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                colors = textFieldColors(focusedTextColor = Color(red = 0, green = 200, blue = 20),focusedContainerColor = Color.White, unfocusedContainerColor = Color.White , unfocusedTextColor = Color(red = 0, green = 200, blue = 20)),
+                supportingText = {
+                    ipError?.let {
+                        Text(it, color = Color.Red)
+                    }
+                }
             )
+
             OutlinedTextField(
                 value = port,
-                onValueChange = { port = it },
+                onValueChange = { port = it
+
+                    val p = port.toIntOrNull()
+
+                    portError = when {
+                        port.isEmpty() -> null
+                        p == null || p !in 1..65535 ->
+                            "Port must be between 1 and 65535"
+                        !isPortAvailable(p) ->
+                            "Port $p is already in use"
+                        else -> null
+                    }},
+                colors = textFieldColors( focusedTextColor = Color.Blue,
+                    unfocusedTextColor = Color.Blue,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White     ),
                 label = { Text("Port") },
                 modifier = Modifier.width(80.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                supportingText = {
+                    portError?.let {
+                        Text(it, color = Color.Red)
+                    }
+                }
             )
         }
+
+        val context = LocalContext.current
 
         // Add / Save Button
         Button(
             onClick = {
-                val portInt = port.toIntOrNull() ?: return@Button
-                if (pearName.isBlank()) return@Button
 
+                // ---------- NAME ----------
+                if (pearName.isBlank()) {
+                    Toast.makeText(context, "Name is required", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                // ---------- IP ----------
+                if (!isValidIPv4(hostName)) {
+                    Toast.makeText(context, "Invalid IP address", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                // ---------- PORT ----------
+                if (! isValidAndFreePort (port)) {
+                    Toast.makeText(context, "Invalid port number", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
+
+                val portInt = port.toIntOrNull() ?: return@Button
+
+
+                // Avoid used ports (only when adding OR changing port)
+                val isPortChanged =
+                    editingPeer == null || editingPeer!!.portNumber != portInt
+
+                if (isPortChanged && !isPortAvailable(portInt)) {
+                    Toast.makeText(
+                        context,
+                        "Port $portInt is already in use",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@Button
+                }
+
+                // ---------- ACTION ----------
                 if (editingPeer == null) {
-                    onAddPeer(Host(pearName, hostName, portInt))
+                    onAddPeer(
+                        Host(
+                            pearName = pearName,
+                            hostName = hostName,
+                            portNumber = portInt
+                        )
+                    )
                 } else {
                     val updatedPeer = editingPeer!!.copy(
                         pearName = pearName,
                         hostName = hostName,
-                        portNumber = portInt,
-                        uuid = editingPeer!!.uuid
+                        portNumber = portInt
                     )
                     onEdit(updatedPeer)
                     editingPeer = null
                 }
 
+                // ---------- RESET ----------
                 pearName = ""
                 hostName = ""
                 port = "55555"
@@ -146,7 +240,10 @@ fun PeersContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
-        ) { Text(if (editingPeer == null) "Add" else "Save") }
+        ) {
+            Text(if (editingPeer == null) "Add" else "Save")
+        }
+
 
         // Cancel button when editing
         if (editingPeer != null) {
@@ -305,6 +402,7 @@ fun ChatScreen(
     if (showEditMyHostDialog) {
         EditHostDialog(myHost, onDismiss = { showEditMyHostDialog = false }) { name, host, port ->
             onEditMyHost(name, host, port)
+            showEditMyHostDialog = false
         }
     }
 

@@ -47,7 +47,8 @@ class PeerManager(
     private val myHost: Host,
     // List of peers to connect to. Needs to be mutable and synchronized/thread-safe externally
     private val remotePeers: MutableList<Host>,
-    private val onMessageReceived: (Message, Host?) -> Unit
+    private val onMessageReceived: (Message, Host?) -> Unit,
+    private val toastMessage: (String) -> Unit
 ) {
 
     private val TAG = "PeerManager"
@@ -72,8 +73,9 @@ class PeerManager(
     /**
      * Starts the PeerManager by initiating the server listener and connecting to known peers.
      */
-    fun start() {
+    suspend fun start() {
         Log.i(TAG, "Starting PeerManager...")
+        notifyToast("starting pear")
         // 1. Start the server in a coroutine
         scope.launch { startServer() }
 
@@ -86,8 +88,9 @@ class PeerManager(
     /**
      * Shuts down all connections and stops the server.
      */
-    fun stop() {
+     fun stop() {
         Log.i(TAG, "Stopping PeerManager...")
+        scope.launch {   notifyToast("Stopping pear")}
         // 1. Notify all connected peers of the disconnect
         val disconnectPacket = NetworkPacket("DISCONNECT", "")
         peerWriterMap.values.forEach { writer ->
@@ -145,6 +148,8 @@ class PeerManager(
         Log.i(TAG, "Server listener finished.")
     }
 
+
+
     // ---------------- CLIENT ----------------
 
     /**
@@ -161,12 +166,15 @@ class PeerManager(
                 // Socket(host, port) is a blocking call (inside Dispatchers.IO)
                 val socket = Socket(peer.hostName, peer.portNumber)
                 Log.i(TAG, "Client connected to $key")
+                notifyToast("Client connected to $key")
+
                 // Handle the connection, marking this side as the initiator
                 handleConnection(socket, true)
                 break // Exit the retry loop upon successful connection
             } catch (e: Exception) {
                 // Log and retry if connection fails (e.g., peer not yet listening)
                 Log.w(TAG, "Connection failed to $key. Retrying in 3s...", e)
+                notifyToast("Connection failed to $key. Retrying in 3s...")
                 delay(3000)
             }
         }
@@ -211,6 +219,7 @@ class PeerManager(
                 when (packet.type) {
 
                     "HANDSHAKE" -> {
+                        notifyToast("pear handshake")
                         val payload = gson.fromJson(packet.payload, HandshakePayload::class.java)
 
                         val uuid = payload.uuid
@@ -308,6 +317,7 @@ class PeerManager(
             remotePeers.removeIf { peerKey(it.hostName, it.portNumber) == key }
         }
         Log.d(TAG, "Peer $key removed from active connections.")
+        scope.launch {  notifyToast("Peer $key removed from active connections.") }
     }
 
     // ---------------- HANDSHAKE ----------------
@@ -316,7 +326,7 @@ class PeerManager(
      * Sends the local Host information to the connected peer.
      * Uses JSON payload for robust data transfer.
      */
-    private fun sendHandshake(writer: BufferedWriter) {
+    private suspend fun sendHandshake(writer: BufferedWriter) {
         val payload = HandshakePayload(
             uuid = myHost.uuid,
             name = myHost.pearName,
@@ -325,7 +335,7 @@ class PeerManager(
         )
 
         val packet = NetworkPacket("HANDSHAKE", gson.toJson(payload))
-
+        notifyToast("Sending handshake")
         // Ensure thread safety when writing to the stream
         scope.launch { sendPacket(writer, packet) }
     }
@@ -423,4 +433,12 @@ class PeerManager(
         // Add the updated peer, which triggers a new connection attempt
         addPeerToList(peer)
     }
+
+
+    private suspend fun notifyToast(message: String) {
+        withContext(Dispatchers.Main) {
+            toastMessage(message)
+        }
+    }
+
 }

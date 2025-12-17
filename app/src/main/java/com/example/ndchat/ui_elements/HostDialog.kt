@@ -22,8 +22,8 @@ import androidx.compose.ui.window.Dialog
 fun HostDialog(
     title: String,
     pearName: String,
-    hostName: String?,
-    port: Int?,
+    hostName: String,
+    port: Int,
     onPearNameChange: (String) -> Unit,
     onHostNameChange: (String) -> Unit,
     onPortChange: (String) -> Unit,
@@ -44,7 +44,7 @@ fun HostDialog(
                     onPearNameChange = onPearNameChange,
                     hostName = hostName,
                     onHostNameChange = onHostNameChange,
-                    port = port?:0,
+                    port = "$port",
                     onPortChange = onPortChange
                 )
 
